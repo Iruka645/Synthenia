@@ -1,0 +1,17 @@
+{
+  "watch": [
+    "src"
+  ],
+  "ignore": [
+    "src/audio/*",
+    "src/audio/**/*",
+    "src/uploads/*",
+    "src/uploads/**/*",
+    "*.wav",
+    "*.mp3",
+    "**/*.wav",
+    "**/*.mp3"
+  ],
+  "ext": "js,json",
+  "verbose": false
+}
