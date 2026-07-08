@@ -11,16 +11,21 @@ class STTService {
       }
 
       const execPath = path.join(__dirname, '..', 'bin', 'whisper', 'Release', 'whisper-cli.exe');
-      const modelPath = path.join(__dirname, '..', 'bin', 'whisper', 'models', 'ggml-small.bin');
+      // Resolve model path: check for medium, fallback to small
+      let modelPath = path.join(__dirname, '..', 'bin', 'whisper', 'models', 'ggml-medium.bin');
+      if (!fs.existsSync(modelPath)) {
+        console.warn(`[STTService] ggml-medium.bin not found. Falling back to ggml-small.bin.`);
+        modelPath = path.join(__dirname, '..', 'bin', 'whisper', 'models', 'ggml-small.bin');
+      }
 
       // Check if executable exists
       if (!fs.existsSync(execPath)) {
         return reject(new Error(`whisper-cli.exe not found at ${execPath}`));
       }
 
-      // Check if model exists
+      // Check if the selected model exists
       if (!fs.existsSync(modelPath)) {
-        return reject(new Error(`ggml-small.bin model not found at ${modelPath}`));
+        return reject(new Error(`Whisper model not found at ${modelPath}`));
       }
 
       // Spawn whisper-cli.exe

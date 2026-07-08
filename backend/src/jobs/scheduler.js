@@ -3,20 +3,31 @@ const fs = require('fs');
 const path = require('path');
 const consolidationWorker = require('../services/memory/consolidationWorker');
 const decayWorker = require('../services/memory/decayWorker');
+const configService = require('../services/config/configService');
 
 function initScheduler() {
   console.log('[Scheduler] Initializing cron jobs...');
 
   // 1. Run memory consolidation every day at 3:00 AM
   cron.schedule('0 3 * * *', async () => {
-    console.log('[Scheduler] Triggering scheduled memory consolidation...');
-    await consolidationWorker.runConsolidation();
+    const autoConsolidate = await configService.get('memory.autoConsolidation', true);
+    if (autoConsolidate !== false) {
+      console.log('[Scheduler] Triggering scheduled memory consolidation...');
+      await consolidationWorker.runConsolidation();
+    } else {
+      console.log('[Scheduler] Scheduled memory consolidation is disabled by config.');
+    }
   });
 
   // 2. Run memory decay job every Sunday at 4:00 AM
   cron.schedule('0 4 * * 0', async () => {
-    console.log('[Scheduler] Triggering scheduled memory decay...');
-    await decayWorker.runDecay();
+    const autoConsolidate = await configService.get('memory.autoConsolidation', true);
+    if (autoConsolidate !== false) {
+      console.log('[Scheduler] Triggering scheduled memory decay...');
+      await decayWorker.runDecay();
+    } else {
+      console.log('[Scheduler] Scheduled memory decay is disabled by config.');
+    }
   });
 
   // 3. Run audio cleanup job every day at 2:00 AM

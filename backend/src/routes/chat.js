@@ -1,6 +1,7 @@
 // Calling libs
 const express = require('express');
 const router = express.Router();
+const { getIO } = require('../websocket');
 
 // Calling OllamaService and TTSService
 const ollamaService = require("../services/ollamaService")
@@ -9,6 +10,7 @@ const sttService = require("../services/sttService")
 const memoryWriteService = require("../services/memory/memoryWriteService");
 const embeddingService = require("../services/memory/embeddingService");
 const consolidationWorker = require("../services/memory/consolidationWorker");
+const llmManager = require("../services/llm/index");
 const gameService = require("../services/gameService");
 const gameCommentaryService = require("../services/gameCommentaryService");
 const multer = require('multer')
@@ -34,32 +36,45 @@ const upload = multer({ storage });
 
 //POST chat request
 router.post("/chat", async (req, res) => {
-    const { message } = req.body;
+  const { message } = req.body;
 
-    if (!message || typeof message !== 'string' || !message.trim()) {
+  if (!message || typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({ error: 'ต้องส่ง message มาด้วย', message: message });
   }
   try {
     // Generate embedding once for user message
     const embedding = await embeddingService.getEmbedding(message.trim());
 
-    // Save user message in long-term memory episodic log with precalculated embedding
-    await memoryWriteService.saveMessage('user', message.trim(), null, embedding);
+    // Phase 4: Fire-and-forget — DB write does not block chat
+    memoryWriteService.saveMessage('user', message.trim(), null, embedding)
+      .catch(err => console.error('[Chat] Error saving user message:', err.message));
 
     const { reply, emotion } = await ollamaService.chat(message.trim(), embedding);
     
-    // Save Syn's reply in long-term memory episodic log
-    await memoryWriteService.saveMessage('assistant', reply, emotion);
+    const ttsJobId = `tts-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
-    let audioUrl = null;
-    try {
-      const audioFilename = await ttsService.generate(reply);
-      audioUrl = `${req.protocol}://${req.get('host')}/audio/${audioFilename}`;
-    } catch (ttsError) {
-      console.error('TTS Error:', ttsError.message);
-    }
+    // Reply text and emotion immediately
+    res.json({ reply, emotion, audioUrl: null, ttsJobId });  
+    
+    // Background: Save assistant message + generate & push TTS audio
+    (async () => {
+      try {
+        // Phase 3: Embed reply in advance and save assistant message with precalculated embedding
+        const replyEmbedding = await embeddingService.getEmbedding(reply);
+        await memoryWriteService.saveMessage('assistant', reply, emotion, replyEmbedding);
+      } catch (err) {
+        console.error('[Chat] Error saving assistant message:', err.message);
+      }
 
-    res.json({ reply, emotion, audioUrl });  
+      try {
+        const audioFilename = await ttsService.generate(reply);
+        const audioUrl = `/audio/${audioFilename}`;
+        getIO().emit('tts:done', { ttsJobId, audioUrl });
+      } catch (ttsError) {
+        console.error('[Chat] TTS Error:', ttsError.message);
+        getIO().emit('tts:error', { ttsJobId, error: ttsError.message });
+      }
+    })();
     
   } catch (error) {
     console.error('Chat error:', error.message);
@@ -92,6 +107,7 @@ router.post("/transcribe", upload.single('audio'), async (req, res) => {
 //POST reset conversation
 router.post('/chat/reset', async (req, res) => {
   ollamaService.resetHistory();
+  llmManager.resetSiliconFlowCounter();
 
   // End current session and trigger memory consolidation asynchronously
   try {
@@ -102,6 +118,11 @@ router.post('/chat/reset', async (req, res) => {
   }
 
   res.json({ message: 'reset conversation history เรียบร้อย' });
+});
+
+// GET chat status (model readiness check)
+router.get('/chat/status', (req, res) => {
+  res.json({ ready: ollamaService.isReady() });
 });
 
 // POST game move request (OX Game)
@@ -152,16 +173,20 @@ router.post("/game/move", async (req, res) => {
     await memoryWriteService.saveMessage('assistant', `ฉันเดินเกม OX ที่ช่อง ${synMove} และพูดว่า "${reply}"`, emotion);
   }
 
-  // 6. Generate speech audio for reply
-  let audioUrl = null;
-  try {
-    const audioFilename = await ttsService.generate(reply);
-    audioUrl = `${req.protocol}://${req.get('host')}/audio/${audioFilename}`;
-  } catch (ttsError) {
-    console.error('TTS Error for game move:', ttsError.message);
-  }
+  // 6. Generate speech audio for reply via WS
+  const ttsJobId = `tts-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+  res.json({ board, synMove, winner, reply, emotion, audioUrl: null, ttsJobId });
 
-  res.json({ board, synMove, winner, reply, emotion, audioUrl });
+  (async () => {
+    try {
+      const audioFilename = await ttsService.generate(reply);
+      const audioUrl = `/audio/${audioFilename}`;
+      getIO().emit('tts:done', { ttsJobId, audioUrl });
+    } catch (ttsError) {
+      console.error('[Chat] Game TTS Error:', ttsError.message);
+      getIO().emit('tts:error', { ttsJobId, error: ttsError.message });
+    }
+  })();
 });
 
 module.exports = router;

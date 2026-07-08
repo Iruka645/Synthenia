@@ -76,6 +76,25 @@ CREATE TABLE IF NOT EXISTS quota_tracking (
   date_key VARCHAR(20),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- 8. Control Panel: unified config storage
+CREATE TABLE IF NOT EXISTS system_config (
+  key VARCHAR(100) PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 9. Control Panel: audit log
+CREATE TABLE IF NOT EXISTS config_change_log (
+  id SERIAL PRIMARY KEY,
+  config_key VARCHAR(100) NOT NULL,
+  old_value JSONB,
+  new_value JSONB,
+  changed_by VARCHAR(100) DEFAULT 'system',
+  changed_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_config_log_key ON config_change_log(config_key);
 `;
 
 async function initDb() {
@@ -182,6 +201,28 @@ async function initDb() {
       );
     `);
     console.log('✔ quota_tracking table verified.');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS system_config (
+        key VARCHAR(100) PRIMARY KEY,
+        value JSONB NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log('✔ system_config table verified.');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS config_change_log (
+        id SERIAL PRIMARY KEY,
+        config_key VARCHAR(100) NOT NULL,
+        old_value JSONB,
+        new_value JSONB,
+        changed_by VARCHAR(100) DEFAULT 'system',
+        changed_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await client.query('CREATE INDEX IF NOT EXISTS idx_config_log_key ON config_change_log(config_key);');
+    console.log('✔ config_change_log table verified.');
 
     console.log('🎉 Database initialization complete!');
   } catch (error) {

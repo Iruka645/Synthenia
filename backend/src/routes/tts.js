@@ -3,6 +3,7 @@ const router = express.Router();
 const ttsManager = require('../services/tts/index');
 const { createTTSProvider } = require('../services/tts/ttsFactory');
 const voiceConversionService = require('../services/voiceConversionService');
+const apiKeyAuth = require('../middleware/apiKeyAuth');
 
 // GET current active provider
 router.get('/current', (req, res) => {
@@ -25,14 +26,14 @@ router.get('/list', (req, res) => {
 });
 
 // POST switch active provider
-router.post('/switch', (req, res) => {
+router.post('/switch', apiKeyAuth, async (req, res) => {
   const { provider } = req.body;
   if (!provider) {
     return res.status(400).json({ error: 'ต้องระบุชื่อ provider ใน request body' });
   }
 
   try {
-    const active = ttsManager.switchProvider(provider);
+    const active = await ttsManager.switchProvider(provider, 'control-panel');
     res.json({ status: 'ok', provider: active });
   } catch (error) {
     res.status(400).json({ error: error.message });

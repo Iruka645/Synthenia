@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import AudioRecorder from '../utils/audioRecorder';
 
-export const ChatInput = ({ onSend, onTranscribe, loading }) => {
+export const ChatInput = ({ onSend, onTranscribe, loading, placeholder }) => {
   const [text, setText] = useState('');
   const [recording, setRecording] = useState(false);
   const [autoSend, setAutoSend] = useState(false); // Default to false so they can review transcribed text
@@ -97,7 +97,9 @@ export const ChatInput = ({ onSend, onTranscribe, loading }) => {
           type="text"
           className="chat-input-field"
           placeholder={
-            loading
+            placeholder
+              ? placeholder
+              : loading
               ? 'ซิน กำลังคิดอยู่...'
               : recording
               ? 'ซิน กำลังฟังอยู่... (กดปุ่มไมค์อีกครั้งเพื่อหยุดพูด)'

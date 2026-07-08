@@ -2,6 +2,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
+const configService = require('./config/configService');
 
 class VoiceConversionService {
   constructor() {
@@ -48,7 +49,7 @@ class VoiceConversionService {
     // Register cleanup logic once to prevent listener leaks on multiple startServer calls
     if (!this._listenersRegistered) {
       this._listenersRegistered = true;
-
+ 
       const cleanup = () => {
         this.stopServer();
       };
@@ -80,7 +81,19 @@ class VoiceConversionService {
     }
   }
 
-  async convert(audioFilename, pitch = 0, indexRate = 0.4) {
+  async updateSettings({ enabled, pitch, indexRate }, changedBy = 'control-panel') {
+    if (enabled !== undefined) {
+      await configService.set('voiceConversion.enabled', enabled === true, changedBy);
+    }
+    if (pitch !== undefined) {
+      await configService.set('voiceConversion.pitch', parseInt(pitch, 10), changedBy);
+    }
+    if (indexRate !== undefined) {
+      await configService.set('voiceConversion.indexRate', parseFloat(indexRate), changedBy);
+    }
+  }
+
+  async convert(audioFilename, pitch = null, indexRate = null) {
     if (!audioFilename) {
       throw new Error('No audio filename provided for conversion');
     }
@@ -91,19 +104,31 @@ class VoiceConversionService {
       return audioFilename;
     }
 
+    let activePitch = pitch;
+    if (activePitch === null || activePitch === undefined) {
+      const savedPitch = await configService.get('voiceConversion.pitch');
+      activePitch = savedPitch !== null ? parseInt(savedPitch, 10) : (process.env.VOICE_CONVERSION_PITCH ? parseInt(process.env.VOICE_CONVERSION_PITCH, 10) : 0);
+    }
+
+    let activeIndexRate = indexRate;
+    if (activeIndexRate === null || activeIndexRate === undefined) {
+      const savedIndexRate = await configService.get('voiceConversion.indexRate');
+      activeIndexRate = savedIndexRate !== null ? parseFloat(savedIndexRate) : (process.env.VOICE_CONVERSION_INDEX_RATE ? parseFloat(process.env.VOICE_CONVERSION_INDEX_RATE) : 0.4);
+    }
+
     // Generate output filename with .wav extension
     const baseName = path.basename(audioFilename, path.extname(audioFilename));
     const outputFilename = `converted_${baseName}_${Date.now()}.wav`;
     const outputPath = path.join(this.audioDir, outputFilename);
 
-    console.log(`[VoiceConversion] Converting ${audioFilename} to ${outputFilename} using RVC server (pitch: ${pitch}, indexRate: ${indexRate})...`);
+    console.log(`[VoiceConversion] Converting ${audioFilename} to ${outputFilename} using RVC server (pitch: ${activePitch}, indexRate: ${activeIndexRate})...`);
 
     try {
       const response = await axios.post(`${this.serverUrl}/convert`, {
         input_path: inputPath,
         output_path: outputPath,
-        f0up_key: pitch,
-        index_rate: indexRate
+        f0up_key: activePitch,
+        index_rate: activeIndexRate
       }, {
         timeout: 90000 // 90 seconds timeout
       });

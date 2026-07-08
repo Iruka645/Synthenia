@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { sendMessage, resetChat, transcribeAudio, sendGameMove } from '../services/api';
+import { sendMessage, resetChat, transcribeAudio, sendGameMove, socket, getChatStatus } from '../services/api';
 import AudioAnalyser from '../utils/audioAnalyser';
 
 export const useChat = () => {
@@ -17,12 +17,71 @@ export const useChat = () => {
   const [gameWinner, setGameWinner] = useState(null);
   const [gameLoading, setGameLoading] = useState(false);
 
+  // System readiness state (Ollama preloading status)
+  const [systemReady, setSystemReady] = useState(false);
+
   const audioAnalyserRef = useRef(new AudioAnalyser());
+
+  // Poll backend status until Ollama models are preloaded
+  useEffect(() => {
+    let active = true;
+    let pollInterval = null;
+
+    const checkStatus = async () => {
+      try {
+        const data = await getChatStatus();
+        if (data.ready && active) {
+          setSystemReady(true);
+          if (pollInterval) clearInterval(pollInterval);
+        }
+      } catch (err) {
+        console.warn('[System Status Check] Failed to query status:', err.message);
+      }
+    };
+
+    // Initial check
+    checkStatus();
+
+    // Poll every 3 seconds
+    pollInterval = setInterval(checkStatus, 3000);
+
+    return () => {
+      active = false;
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, []);
+
+  // Map to hold pending TTS job callbacks
+  const pendingTTSRef = useRef(new Map());
 
   // Clean up audio analyser on unmount
   useEffect(() => {
     return () => {
       audioAnalyserRef.current.stop();
+    };
+  }, []);
+
+  // Listen to WebSocket 'tts:done' and 'tts:error' events
+  useEffect(() => {
+    const handleTTSDone = ({ ttsJobId, audioUrl }) => {
+      const callback = pendingTTSRef.current.get(ttsJobId);
+      if (callback) {
+        callback(audioUrl);
+        pendingTTSRef.current.delete(ttsJobId);
+      }
+    };
+
+    const handleTTSError = ({ ttsJobId, error }) => {
+      console.warn('[TTS WebSocket] Job failed:', error);
+      pendingTTSRef.current.delete(ttsJobId);
+    };
+
+    socket.on('tts:done', handleTTSDone);
+    socket.on('tts:error', handleTTSError);
+
+    return () => {
+      socket.off('tts:done', handleTTSDone);
+      socket.off('tts:error', handleTTSError);
     };
   }, []);
 
@@ -59,6 +118,23 @@ export const useChat = () => {
       console.error('Failed to initialize audio playback with analysis:', err);
     }
   }, []);
+
+  // Helper to wait for audio push via WebSocket and play it
+  const waitForAudioAndPlay = useCallback((ttsJobId) => {
+    const WS_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4040';
+    pendingTTSRef.current.set(ttsJobId, (audioUrl) => {
+      const fullUrl = `${WS_URL}${audioUrl}`;
+      playAudioWithAnalysis(fullUrl);
+    });
+
+    // Cleanup timeout: remove after 120s if no event received
+    setTimeout(() => {
+      if (pendingTTSRef.current.has(ttsJobId)) {
+        console.warn('[TTS WebSocket] Timed out waiting for audio');
+        pendingTTSRef.current.delete(ttsJobId);
+      }
+    }, 120_000);
+  }, [playAudioWithAnalysis]);
 
   const send = useCallback(async (text) => {
     if (!text || !text.trim()) return;
@@ -97,9 +173,9 @@ export const useChat = () => {
         setCurrentEmotion(response.emotion);
       }
 
-      // Play generated audio if available
-      if (response.audioUrl) {
-        playAudioWithAnalysis(response.audioUrl);
+      // Wait for audio from WebSocket (does not block UI)
+      if (response.ttsJobId) {
+        waitForAudioAndPlay(response.ttsJobId);
       }
     } catch (err) {
       console.error('Error sending message:', err);
@@ -108,7 +184,7 @@ export const useChat = () => {
     } finally {
       setLoading(false);
     }
-  }, [playAudioWithAnalysis]);
+  }, [waitForAudioAndPlay]);
 
   const transcribe = useCallback(async (wavBlob) => {
     setLoading(true);
@@ -213,8 +289,8 @@ export const useChat = () => {
       if (response.emotion) {
         setCurrentEmotion(response.emotion);
       }
-      if (response.audioUrl) {
-        playAudioWithAnalysis(response.audioUrl);
+      if (response.ttsJobId) {
+        waitForAudioAndPlay(response.ttsJobId);
       }
     } catch (err) {
       console.error('Error playing game move:', err);
@@ -223,7 +299,7 @@ export const useChat = () => {
     } finally {
       setGameLoading(false);
     }
-  }, [board, gameWinner, gameLoading, playAudioWithAnalysis]);
+  }, [board, gameWinner, gameLoading, waitForAudioAndPlay]);
 
   return {
     messages,
@@ -232,6 +308,7 @@ export const useChat = () => {
     send,
     transcribe,
     clear,
+    systemReady,
     // Live2D parameters
     currentEmotion,
     volume,
