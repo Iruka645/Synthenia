@@ -44,6 +44,11 @@ class STTService {
       let stdoutData = '';
       let stderrData = '';
 
+      const timeoutId = setTimeout(() => {
+        child.kill();
+        reject(new Error('Whisper transcription timeout (60s)'));
+      }, 60000);
+
       child.stdout.on('data', (data) => {
         stdoutData += data.toString();
       });
@@ -53,6 +58,7 @@ class STTService {
       });
 
       child.on('close', (code) => {
+        clearTimeout(timeoutId);
         if (code !== 0) {
           console.error(`Whisper process exited with code ${code}. Error: ${stderrData}`);
           return reject(new Error(stderrData || `Whisper execution failed with code ${code}`));

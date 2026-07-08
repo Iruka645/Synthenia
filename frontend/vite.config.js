@@ -7,5 +7,16 @@ export default defineConfig({
   server: {
     port: 6060,
     host: true,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('pixi')) {
+            return 'pixi';
+          }
+        }
+      }
+    }
   }
 })

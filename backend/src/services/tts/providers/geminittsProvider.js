@@ -188,6 +188,7 @@ class GeminiTTSProvider extends BaseTTSProvider {
           },
         },
       }),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (response.status === 429) {

@@ -26,16 +26,10 @@ const fitModelToCanvas = (loadedModel, app) => {
   loadedModel.y = height * 0.58 / 4;
 };
 
-export const AvatarCanvas = ({ emotion, volume }) => {
+export const AvatarCanvas = ({ emotion, volumeRef }) => {
   const containerRef = useRef(null);
   const [model, setModel] = useState(null);
-  const volumeRef = useRef(0);
   const tickerRef = useRef(null);
-
-  // Sync volume to ref so PIXI ticker can read it without rebuilding
-  useEffect(() => {
-    volumeRef.current = volume;
-  }, [volume]);
 
   // Handle emotion changes
   useEffect(() => {
@@ -145,64 +139,76 @@ export const AvatarCanvas = ({ emotion, volume }) => {
     // 2. Load Live2D Model
     const modelUrl = '/live2d-models/syn/model.json';
 
-    Live2DModel.from(modelUrl)
-      .then((loadedModel) => {
-        if (disposed) {
-          loadedModel.destroy();
-          return;
-        }
+    const loadModelWithGuard = () => {
+      if (disposed) return;
 
-        currentModel = loadedModel;
-        app.stage.addChild(loadedModel);
+      if (!window.Live2D) {
+        console.warn('[Live2D] window.Live2D is not initialized yet. Retrying in 100ms...');
+        setTimeout(loadModelWithGuard, 100);
+        return;
+      }
 
-        // Adjust position & scale
-        fitModelToCanvas(loadedModel, app);
+      Live2DModel.from(modelUrl)
+        .then((loadedModel) => {
+          if (disposed) {
+            loadedModel.destroy();
+            return;
+          }
 
-        // Enable interaction (looking at pointer)
-        loadedModel.interactive = true;
-        app.stage.interactive = true;
+          currentModel = loadedModel;
+          app.stage.addChild(loadedModel);
 
-        app.stage.on('pointermove', (e) => {
-          loadedModel.focus(e.data.global.x, e.data.global.y);
-        });
+          // Adjust position & scale
+          fitModelToCanvas(loadedModel, app);
 
-        // Click interaction
-        loadedModel.on('pointertap', () => {
-          const definitions = loadedModel.internalModel?.motionManager?.definitions || {};
-          const keys = Object.keys(definitions).filter(k => k !== 'idle');
-          if (keys.length > 0) {
-            const randomMotion = keys[Math.floor(Math.random() * keys.length)];
-            loadedModel.motion(randomMotion);
+          // Enable interaction (looking at pointer)
+          loadedModel.interactive = true;
+          app.stage.interactive = true;
+
+          app.stage.on('pointermove', (e) => {
+            loadedModel.focus(e.data.global.x, e.data.global.y);
+          });
+
+          // Click interaction
+          loadedModel.on('pointertap', () => {
+            const definitions = loadedModel.internalModel?.motionManager?.definitions || {};
+            const keys = Object.keys(definitions).filter(k => k !== 'idle');
+            if (keys.length > 0) {
+              const randomMotion = keys[Math.floor(Math.random() * keys.length)];
+              loadedModel.motion(randomMotion);
+            }
+          });
+
+          setModel(loadedModel);
+
+          // 3. PIXI Ticker for Lip-Sync
+          const syncMouth = () => {
+            if (loadedModel.internalModel && loadedModel.internalModel.coreModel) {
+              const coreModel = loadedModel.internalModel.coreModel;
+              const mouthValue = volumeRef ? volumeRef.current : 0;
+
+              if (typeof coreModel.setParamFloat === 'function') {
+                coreModel.setParamFloat('PARAM_MOUTH_OPEN_Y', mouthValue);
+              }
+              if (typeof coreModel.setParameterValueById === 'function') {
+                coreModel.setParameterValueById('PARAM_MOUTH_OPEN_Y', mouthValue);
+                coreModel.setParameterValueById('ParamMouthOpenY', mouthValue);
+              }
+            }
+          };
+          tickerRef.current = syncMouth;
+          app.ticker.add(syncMouth);
+
+          console.log('[Live2D] Model loaded successfully');
+        })
+        .catch((error) => {
+          if (!disposed) {
+            console.error('[Live2D] Error loading model:', error);
           }
         });
+    };
 
-        setModel(loadedModel);
-
-        // 3. PIXI Ticker for Lip-Sync
-        const syncMouth = () => {
-          if (loadedModel.internalModel && loadedModel.internalModel.coreModel) {
-            const coreModel = loadedModel.internalModel.coreModel;
-            const mouthValue = volumeRef.current;
-
-            if (typeof coreModel.setParamFloat === 'function') {
-              coreModel.setParamFloat('PARAM_MOUTH_OPEN_Y', mouthValue);
-            }
-            if (typeof coreModel.setParameterValueById === 'function') {
-              coreModel.setParameterValueById('PARAM_MOUTH_OPEN_Y', mouthValue);
-              coreModel.setParameterValueById('ParamMouthOpenY', mouthValue);
-            }
-          }
-        };
-        tickerRef.current = syncMouth;
-        app.ticker.add(syncMouth);
-
-        console.log('[Live2D] Model loaded successfully');
-      })
-      .catch((error) => {
-        if (!disposed) {
-          console.error('[Live2D] Error loading model:', error);
-        }
-      });
+    loadModelWithGuard();
 
     // Cleanup
     return () => {
@@ -264,4 +270,4 @@ export const AvatarCanvas = ({ emotion, volume }) => {
   );
 };
 
-export default AvatarCanvas;
+export default React.memo(AvatarCanvas);

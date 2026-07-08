@@ -17,6 +17,11 @@ class PiperProvider extends BaseProvider {
       let stdoutData = '';
       let stderrData = '';
 
+      const timeoutId = setTimeout(() => {
+        pyProcess.kill();
+        reject(new Error('Piper synthesis timeout (30s)'));
+      }, 30000);
+
       pyProcess.stdout.on('data', (data) => {
         stdoutData += data.toString();
       });
@@ -26,6 +31,8 @@ class PiperProvider extends BaseProvider {
       });
 
       pyProcess.on('close', (code) => {
+        clearTimeout(timeoutId);
+        
         if (code !== 0) {
           console.error(`Python Piper process exited with code ${code}. Error: ${stderrData}`);
           return reject(new Error(stderrData || `Piper execution failed with code ${code}`));

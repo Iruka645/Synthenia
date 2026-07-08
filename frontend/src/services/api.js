@@ -6,18 +6,63 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 60000,
 });
 
-const WS_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4040';
+// Request interceptor to automatically inject x-api-key from sessionStorage if not manually provided
+api.interceptors.request.use((config) => {
+  if (!config.headers['x-api-key']) {
+    const apiKey = sessionStorage.getItem('synthenia_api_key');
+    if (apiKey) {
+      config.headers['x-api-key'] = apiKey;
+    }
+  }
+  return config;
+});
+
+// Response interceptor to catch 401s, clear stored keys, and normalize error response messages
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      sessionStorage.removeItem('synthenia_api_key');
+      window.dispatchEvent(new Event('auth-unauthorized'));
+    }
+
+    // Normalize error message
+    let message = 'เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์';
+    if (error.response && error.response.data && error.response.data.error) {
+      message = error.response.data.error;
+    } else if (error.message) {
+      message = error.message;
+    }
+
+    const normalizedError = new Error(message);
+    normalizedError.status = error.response?.status;
+    normalizedError.originalError = error;
+
+    return Promise.reject(normalizedError);
+  }
+);
+
+const getWsUrl = () => {
+  const viteApiUrl = import.meta.env.VITE_API_URL;
+  if (viteApiUrl) {
+    return viteApiUrl.replace('/api', '');
+  }
+  return window.location.origin;
+};
+
+const WS_URL = getWsUrl();
 export const socket = io(WS_URL, {
-  autoConnect: true,
+  autoConnect: false,
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 2000,
 });
 
-export const sendMessage = async (message) => {
-  const response = await api.post('/chat', { message });
+export const sendMessage = async (message, signal) => {
+  const response = await api.post('/chat', { message }, { signal });
   return response.data;
 };
 
@@ -26,19 +71,20 @@ export const resetChat = async () => {
   return response.data;
 };
 
-export const transcribeAudio = async (wavBlob) => {
+export const transcribeAudio = async (wavBlob, signal) => {
   const formData = new FormData();
   formData.append('audio', wavBlob, 'voice.wav');
   const response = await api.post('/transcribe', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
-    }
+    },
+    signal
   });
   return response.data;
 };
 
-export const sendGameMove = async (board, move) => {
-  const response = await api.post('/game/move', { board, move });
+export const sendGameMove = async (board, move, signal) => {
+  const response = await api.post('/game/move', { board, move }, { signal });
   return response.data;
 };
 
@@ -108,52 +154,38 @@ export const testLLMProvider = async (provider) => {
 };
 
 // Mutating APIs (require auth header)
-export const updateLLMConfig = async (data, apiKey) => {
-  const response = await api.patch('/config/llm', data, {
-    headers: { 'x-api-key': apiKey }
-  });
+export const updateLLMConfig = async (data) => {
+  const response = await api.patch('/config/llm', data);
   return response.data;
 };
 
-export const updateTTSConfig = async (data, apiKey) => {
-  const response = await api.patch('/config/tts', data, {
-    headers: { 'x-api-key': apiKey }
-  });
+export const updateTTSConfig = async (data) => {
+  const response = await api.patch('/config/tts', data);
   return response.data;
 };
 
-export const updateVoiceConversionConfig = async (data, apiKey) => {
-  const response = await api.patch('/config/voice-conversion', data, {
-    headers: { 'x-api-key': apiKey }
-  });
+export const updateVoiceConversionConfig = async (data) => {
+  const response = await api.patch('/config/voice-conversion', data);
   return response.data;
 };
 
-export const updateMemoryConfig = async (data, apiKey) => {
-  const response = await api.patch('/config/memory', data, {
-    headers: { 'x-api-key': apiKey }
-  });
+export const updateMemoryConfig = async (data) => {
+  const response = await api.patch('/config/memory', data);
   return response.data;
 };
 
-export const resetConfigKey = async (key, apiKey) => {
-  const response = await api.post(`/config/reset/${key}`, {}, {
-    headers: { 'x-api-key': apiKey }
-  });
+export const resetConfigKey = async (key) => {
+  const response = await api.post(`/config/reset/${key}`, {});
   return response.data;
 };
 
-export const triggerConsolidate = async (apiKey) => {
-  const response = await api.post('/memory/consolidate', {}, {
-    headers: { 'x-api-key': apiKey }
-  });
+export const triggerConsolidate = async () => {
+  const response = await api.post('/memory/consolidate', {});
   return response.data;
 };
 
-export const triggerDecay = async (apiKey) => {
-  const response = await api.post('/memory/decay', {}, {
-    headers: { 'x-api-key': apiKey }
-  });
+export const triggerDecay = async () => {
+  const response = await api.post('/memory/decay', {});
   return response.data;
 };
 

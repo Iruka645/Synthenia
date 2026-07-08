@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getTTSCurrentProvider, getTTSProvidersList, switchTTSProvider, previewTTS } from '../services/api';
 
-export const TTSProviderSelector = () => {
+export const TTSProviderSelector = React.memo(() => {
   const [providers, setProviders] = useState([]);
   const [currentProvider, setCurrentProvider] = useState('');
   const [loading, setLoading] = useState(false);
@@ -275,6 +275,6 @@ export const TTSProviderSelector = () => {
       )}
     </div>
   );
-};
+});
 
 export default TTSProviderSelector;

@@ -9,7 +9,7 @@ export const useChat = () => {
 
   // Live2D State
   const [currentEmotion, setCurrentEmotion] = useState('neutral');
-  const [volume, setVolume] = useState(0);
+  const volumeRef = useRef(0);
 
   // Game Mode State
   const [gameMode, setGameMode] = useState(false);
@@ -20,49 +20,87 @@ export const useChat = () => {
   // System readiness state (Ollama preloading status)
   const [systemReady, setSystemReady] = useState(false);
 
-  const audioAnalyserRef = useRef(new AudioAnalyser());
+  const audioAnalyserRef = useRef(null);
+  if (!audioAnalyserRef.current) {
+    audioAnalyserRef.current = new AudioAnalyser();
+  }
 
-  // Poll backend status until Ollama models are preloaded
+  // Ref to track requests and prevent race conditions/stale state updates
+  const requestIdRef = useRef(0);
+  // AbortController for the single in-flight request; aborting the previous
+  // controller when a new request starts actually frees the HTTP connection
+  // (requestIdRef only *ignores* stale responses, it can't cancel them).
+  const abortControllerRef = useRef(null);
+
+  // Abort any in-flight request. Used on supersede / clear / unmount.
+  const cancelInFlight = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
+
+  // Poll backend status until Ollama models are preloaded, with max attempts and backoff
   useEffect(() => {
     let active = true;
-    let pollInterval = null;
+    let attempt = 0;
+    const maxAttempts = 15;
+    let delay = 2000;
+    let timerId = null;
 
     const checkStatus = async () => {
+      if (!active) return;
       try {
         const data = await getChatStatus();
         if (data.ready && active) {
           setSystemReady(true);
-          if (pollInterval) clearInterval(pollInterval);
+          return;
         }
       } catch (err) {
         console.warn('[System Status Check] Failed to query status:', err.message);
       }
+
+      attempt++;
+      if (attempt < maxAttempts && active) {
+        delay = Math.min(delay * 1.5, 10000); // Backoff, cap at 10s
+        timerId = setTimeout(checkStatus, delay);
+      } else if (attempt >= maxAttempts) {
+        console.warn('[System Status Check] Reached maximum status poll attempts.');
+        // Fallback to ready anyway so user can try messaging
+        setSystemReady(true);
+      }
     };
 
-    // Initial check
     checkStatus();
-
-    // Poll every 3 seconds
-    pollInterval = setInterval(checkStatus, 3000);
 
     return () => {
       active = false;
-      if (pollInterval) clearInterval(pollInterval);
+      if (timerId) clearTimeout(timerId);
     };
   }, []);
 
   // Map to hold pending TTS job callbacks
   const pendingTTSRef = useRef(new Map());
 
-  // Clean up audio analyser on unmount
+  // Clean up audio analyser + cancel any in-flight request on unmount
   useEffect(() => {
     return () => {
-      audioAnalyserRef.current.stop();
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      if (audioAnalyserRef.current) {
+        audioAnalyserRef.current.stop();
+      }
     };
   }, []);
 
   // Listen to WebSocket 'tts:done' and 'tts:error' events
   useEffect(() => {
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     const handleTTSDone = ({ ttsJobId, audioUrl }) => {
       const callback = pendingTTSRef.current.get(ttsJobId);
       if (callback) {
@@ -96,19 +134,19 @@ export const useChat = () => {
 
       audio.addEventListener('play', () => {
         audioAnalyserRef.current.analyse(audio, (vol) => {
-          setVolume(vol);
+          volumeRef.current = vol;
         });
       });
 
       audio.addEventListener('ended', () => {
         audioAnalyserRef.current.stop();
-        setVolume(0);
+        volumeRef.current = 0;
       });
 
       audio.addEventListener('error', (e) => {
         console.error('Audio load error:', e);
         audioAnalyserRef.current.stop();
-        setVolume(0);
+        volumeRef.current = 0;
       });
 
       audio.play().catch(audioErr => {
@@ -140,7 +178,12 @@ export const useChat = () => {
     if (!text || !text.trim()) return;
 
     const trimmedText = text.trim();
-    
+    // Abort any previous in-flight request and start a fresh one
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const reqId = ++requestIdRef.current; // capture request ID
+
     // Add user message immediately
     const userMessage = {
       id: Date.now() + '-user',
@@ -157,8 +200,9 @@ export const useChat = () => {
     setCurrentEmotion('thinking');
 
     try {
-      const response = await sendMessage(trimmedText);
-      
+      const response = await sendMessage(trimmedText, controller.signal);
+      if (reqId !== requestIdRef.current) return; // Discard stale response
+
       const assistantMessage = {
         id: Date.now() + '-assistant',
         text: response.reply || 'ไม่มีคำตอบจาก AI',
@@ -178,30 +222,55 @@ export const useChat = () => {
         waitForAudioAndPlay(response.ttsJobId);
       }
     } catch (err) {
+      // Aborts are expected (superseded by a newer send / clear / unmount)
+      if (controller.signal.aborted || err.name === 'CanceledError') return;
+      if (reqId !== requestIdRef.current) return;
       console.error('Error sending message:', err);
       setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์');
       setCurrentEmotion('annoyed');
     } finally {
-      setLoading(false);
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
+      if (reqId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [waitForAudioAndPlay]);
 
   const transcribe = useCallback(async (wavBlob) => {
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const reqId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
     try {
-      const result = await transcribeAudio(wavBlob);
+      const result = await transcribeAudio(wavBlob, controller.signal);
+      if (reqId !== requestIdRef.current) return '';
       return result.text || '';
     } catch (err) {
+      if (controller.signal.aborted || err.name === 'CanceledError') return '';
+      if (reqId !== requestIdRef.current) return '';
       console.error('Error transcribing audio:', err);
       setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการแปลงเสียงเป็นข้อความ');
       return '';
     } finally {
-      setLoading(false);
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
+      if (reqId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
   const clear = useCallback(async () => {
+    requestIdRef.current++; // Invalidate pending operations
+    cancelInFlight(); // Abort any in-flight HTTP request
+    // Drop pending TTS jobs so a late socket event can't replay audio
+    // after the conversation has been wiped.
+    pendingTTSRef.current.clear();
     setLoading(true);
     setError(null);
     try {
@@ -211,15 +280,17 @@ export const useChat = () => {
       setGameWinner(null);
       setGameMode(false);
       setCurrentEmotion('neutral');
-      setVolume(0);
-      audioAnalyserRef.current.stop();
+      volumeRef.current = 0;
+      if (audioAnalyserRef.current) {
+        audioAnalyserRef.current.stop();
+      }
     } catch (err) {
       console.error('Error resetting chat:', err);
       setError('ไม่สามารถรีเซ็ตประวัติการสนทนาได้');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [cancelInFlight]);
 
   // Game Mode Methods
   const startGame = useCallback(() => {
@@ -261,6 +332,12 @@ export const useChat = () => {
     setError(null);
     setCurrentEmotion('thinking');
 
+    // Abort any previous in-flight request (covers chat→game or game→game races)
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const reqId = ++requestIdRef.current; // capture request ID
+
     // Add Ken's move to messages list
     const userMsg = {
       id: Date.now() + '-user-game',
@@ -271,8 +348,9 @@ export const useChat = () => {
     setMessages((prev) => [...prev, userMsg]);
 
     try {
-      const response = await sendGameMove(nextBoard, index);
-      
+      const response = await sendGameMove(nextBoard, index, controller.signal);
+      if (reqId !== requestIdRef.current) return;
+
       setBoard(response.board);
       setGameWinner(response.winner);
 
@@ -293,11 +371,18 @@ export const useChat = () => {
         waitForAudioAndPlay(response.ttsJobId);
       }
     } catch (err) {
+      if (controller.signal.aborted || err.name === 'CanceledError') return;
+      if (reqId !== requestIdRef.current) return;
       console.error('Error playing game move:', err);
       setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการเล่นเกม');
       setCurrentEmotion('annoyed');
     } finally {
-      setGameLoading(false);
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
+      if (reqId === requestIdRef.current) {
+        setGameLoading(false);
+      }
     }
   }, [board, gameWinner, gameLoading, waitForAudioAndPlay]);
 
@@ -311,7 +396,7 @@ export const useChat = () => {
     systemReady,
     // Live2D parameters
     currentEmotion,
-    volume,
+    volumeRef,
     // OX Game parameters
     gameMode,
     board,

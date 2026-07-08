@@ -6,6 +6,9 @@ class MemoryRetrievalService {
     if (!userMessage || !userMessage.trim()) return [];
 
     try {
+      // Set probes for ivfflat index accuracy
+      await query(`SET ivfflat.probes = 10`);
+
       // 1. Get embedding for current user message
       const queryEmbedding = precalculatedEmbedding || await embeddingService.getEmbedding(userMessage);
       const embeddingStr = JSON.stringify(queryEmbedding);
@@ -59,10 +62,11 @@ class MemoryRetrievalService {
       let fallbackMessages = [];
 
       if (topSimilarity < 0.5 || retrievedFacts.length === 0) {
-        // Fallback: Query episodic messages directly
+        // Fallback: Query episodic messages directly (only from the last 30 days)
         const msgResult = await query(
           `SELECT m.content, m.role, m.created_at, (1 - (m.embedding <=> $1::vector)) AS similarity
            FROM messages m
+           WHERE m.created_at > NOW() - INTERVAL '30 days'
            ORDER BY m.embedding <=> $1::vector ASC
            LIMIT 5`,
           [embeddingStr]
@@ -77,26 +81,26 @@ class MemoryRetrievalService {
       // Update access stats for retrieved semantic facts
       if (retrievedFacts.length > 0) {
         const factIds = retrievedFacts.map(f => f.id);
-        await query(
+        query(
           `UPDATE semantic_facts
            SET access_count = access_count + 1,
                last_accessed_at = NOW()
            WHERE id = ANY($1::int[])`,
           [factIds]
-        );
+        ).catch(err => console.error('[MemoryRetrieval] access_count update failed:', err.message));
 
         // 4. Log retrieval log
-        await query(
+        query(
           `INSERT INTO memory_retrieval_log (query_text, retrieved_fact_ids)
            VALUES ($1, $2)`,
           [userMessage.trim(), factIds]
-        );
+        ).catch(err => console.error('[MemoryRetrieval] log insert failed:', err.message));
       } else {
-        await query(
+        query(
           `INSERT INTO memory_retrieval_log (query_text, retrieved_fact_ids)
            VALUES ($1, '{}')`,
           [userMessage.trim()]
-        );
+        ).catch(err => console.error('[MemoryRetrieval] empty log insert failed:', err.message));
       }
 
       return {

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { getConfig } from '../services/api';
-import LLMConfigTab from './tabs/LLMConfigTab';
-import TTSConfigTab from './tabs/TTSConfigTab';
-import VoiceConversionTab from './tabs/VoiceConversionTab';
-import MemoryTab from './tabs/MemoryTab';
-import SystemStatusTab from './tabs/SystemStatusTab';
+
+const LLMConfigTab = lazy(() => import('./tabs/LLMConfigTab'));
+const TTSConfigTab = lazy(() => import('./tabs/TTSConfigTab'));
+const VoiceConversionTab = lazy(() => import('./tabs/VoiceConversionTab'));
+const MemoryTab = lazy(() => import('./tabs/MemoryTab'));
+const SystemStatusTab = lazy(() => import('./tabs/SystemStatusTab'));
 
 export const ControlPanel = ({ apiKey, onLogout, onClose }) => {
   const [config, setConfig] = useState(null);
@@ -161,7 +162,9 @@ export const ControlPanel = ({ apiKey, onLogout, onClose }) => {
         minHeight: '400px',
         backdropFilter: 'blur(8px)'
       }}>
-        {renderActiveTab()}
+        <Suspense fallback={<div style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '40px' }}>กำลังโหลดแท็บ...</div>}>
+          {renderActiveTab()}
+        </Suspense>
       </div>
     </div>
   );

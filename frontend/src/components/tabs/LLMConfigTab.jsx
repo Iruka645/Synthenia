@@ -16,17 +16,22 @@ export const LLMConfigTab = ({ config, onConfigChange, apiKey }) => {
   const [testResult, setTestResult] = useState(null);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
+  // Track whether the user has unsaved local edits; when dirty, a config
+  // refetch must NOT overwrite in-progress inputs (prevents data loss).
+  const [isDirty, setIsDirty] = useState(false);
 
-  // Sync state with incoming config prop
+  // Sync state with incoming config prop — only when there are no pending
+  // local edits, so a refetch triggered by another tab's save won't wipe
+  // values the user is still typing/adjusting.
   useEffect(() => {
-    if (config) {
+    if (config && !isDirty) {
       setActiveProvider(config['llm.currentProvider'] || 'ollama');
       setModelByProvider(config['llm.modelByProvider'] || { ollama: '', siliconflow: '' });
       setOllamaModelInput(config['llm.modelByProvider']?.ollama || 'gemma4:12b');
       setSiliconflowModelInput(config['llm.modelByProvider']?.siliconflow || 'openai/gpt-oss-20b');
       setModelParams(config['llm.modelParams'] || { temperature: 0.8, top_p: 0.9, num_predict: 300 });
     }
-  }, [config]);
+  }, [config, isDirty]);
 
   const handleSave = async (updatedProvider = activeProvider) => {
     setSaving(true);
@@ -44,6 +49,7 @@ export const LLMConfigTab = ({ config, onConfigChange, apiKey }) => {
 
     try {
       await updateLLMConfig(data, apiKey);
+      setIsDirty(false); // edits persisted to server; allow next config refetch to resync
       setSuccessMsg('บันทึกการตั้งค่า LLM สำเร็จ');
       onConfigChange(); // Refresh parent state
       setTimeout(() => setSuccessMsg(null), 3000);
@@ -79,6 +85,7 @@ export const LLMConfigTab = ({ config, onConfigChange, apiKey }) => {
     setError(null);
     try {
       await resetConfigKey(key, apiKey);
+      setIsDirty(false); // reset to defaults; allow next config refetch to resync
       setSuccessMsg('รีเซ็ตการตั้งค่ากลับเป็นค่าเริ่มต้นแล้ว');
       onConfigChange();
       setTimeout(() => setSuccessMsg(null), 3000);
@@ -231,7 +238,7 @@ export const LLMConfigTab = ({ config, onConfigChange, apiKey }) => {
           <input
             type="text"
             value={ollamaModelInput}
-            onChange={(e) => setOllamaModelInput(e.target.value)}
+            onChange={(e) => { setOllamaModelInput(e.target.value); setIsDirty(true); }}
             placeholder="e.g. gemma4:12b"
             style={{
               background: 'rgba(10, 10, 15, 0.6)',
@@ -250,7 +257,7 @@ export const LLMConfigTab = ({ config, onConfigChange, apiKey }) => {
           <input
             type="text"
             value={siliconflowModelInput}
-            onChange={(e) => setSiliconflowModelInput(e.target.value)}
+            onChange={(e) => { setSiliconflowModelInput(e.target.value); setIsDirty(true); }}
             placeholder="e.g. openai/gpt-oss-20b"
             style={{
               background: 'rgba(10, 10, 15, 0.6)',
@@ -283,7 +290,7 @@ export const LLMConfigTab = ({ config, onConfigChange, apiKey }) => {
           max={2.0}
           step={0.1}
           value={modelParams.temperature}
-          onChange={(val) => setModelParams({ ...modelParams, temperature: val })}
+          onChange={(val) => { setModelParams({ ...modelParams, temperature: val }); setIsDirty(true); }}
           helpText="ค่าน้อย = ตอบตรงตัวตน มีระเบียบ / ค่ามาก = คำตอบแปลกใหม่ อารมณ์ลื่นไหล แต่อาจพูดจานอกลู่นอกทาง"
         />
 
@@ -293,7 +300,7 @@ export const LLMConfigTab = ({ config, onConfigChange, apiKey }) => {
           max={1.0}
           step={0.05}
           value={modelParams.top_p}
-          onChange={(val) => setModelParams({ ...modelParams, top_p: val })}
+          onChange={(val) => { setModelParams({ ...modelParams, top_p: val }); setIsDirty(true); }}
           helpText="สัดส่วนความน่าจะเป็นในการประเมินความสมเหตุสมผลของชุดคำพูดก่อนส่งออก"
         />
 
@@ -303,7 +310,7 @@ export const LLMConfigTab = ({ config, onConfigChange, apiKey }) => {
           max={1000}
           step={50}
           value={modelParams.num_predict}
-          onChange={(val) => setModelParams({ ...modelParams, num_predict: val })}
+          onChange={(val) => { setModelParams({ ...modelParams, num_predict: val }); setIsDirty(true); }}
           valueSuffix=" tokens"
           helpText="ขีดจำกัดความยาวประโยคในการประมวลผลคำตอบ (300 tokens ปลอดภัยสุด)"
         />

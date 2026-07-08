@@ -27,8 +27,13 @@ export class AudioRecorder {
       this.samples.push(new Float32Array(channelData));
     };
     
+    // Create a dummy gain node with gain = 0 to prevent audio feedback loop
+    const gainNode = this.audioContext.createGain();
+    gainNode.gain.value = 0;
+    
     this.input.connect(this.processor);
-    this.processor.connect(this.audioContext.destination);
+    this.processor.connect(gainNode);
+    gainNode.connect(this.audioContext.destination);
   }
 
   async stop() {

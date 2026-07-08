@@ -88,3 +88,40 @@ async function startServer() {
 }
 
 startServer();
+
+function gracefulShutdown(signal) {
+  console.log(`[Server] Received ${signal}. Starting graceful shutdown...`);
+  
+  server.close(async () => {
+    console.log('[Server] HTTP server closed.');
+    
+    if (process.env.VOICE_CONVERSION_ENABLED === 'true') {
+      try {
+        const voiceConversionService = require('./services/voiceConversionService');
+        voiceConversionService.stopServer();
+        console.log('[Server] RVC sidecar server stopped.');
+      } catch (err) {
+        console.error('[Server] Error stopping RVC server:', err.message);
+      }
+    }
+    
+    try {
+      const { pool } = require('./db/pool');
+      await pool.end();
+      console.log('[Server] Database pool closed.');
+    } catch (err) {
+      console.error('[Server] Error closing database pool:', err.message);
+    }
+    
+    console.log('[Server] Graceful shutdown complete. Exiting.');
+    process.exit(0);
+  });
+  
+  setTimeout(() => {
+    console.error('[Server] Force exiting due to shutdown timeout.');
+    process.exit(1);
+  }, 10000);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

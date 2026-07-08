@@ -32,10 +32,13 @@ router.get('/', async (req, res) => {
 // GET /api/config/audit-log -> list of audit log entries (no auth)
 router.get('/audit-log', async (req, res) => {
   const limit = parseInt(req.query.limit, 10) || 20;
+  const offset = parseInt(req.query.offset, 10) || 0;
+  const cappedLimit = Math.min(Math.max(limit, 1), 100);
+  const safeOffset = Math.max(offset, 0);
   try {
     const result = await query(
-      `SELECT * FROM config_change_log ORDER BY changed_at DESC LIMIT $1`,
-      [limit]
+      `SELECT * FROM config_change_log ORDER BY changed_at DESC LIMIT $1 OFFSET $2`,
+      [cappedLimit, safeOffset]
     );
     res.json(result.rows);
   } catch (error) {

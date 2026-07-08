@@ -1,22 +1,33 @@
 import React, { useState } from 'react';
 import ChatWindow from './components/ChatWindow';
 import ChatInput from './components/ChatInput';
-import AvatarCanvas from './components/AvatarCanvas';
 import GameBoard from './components/GameBoard';
 import { TTSProviderSelector } from './components/TTSProviderSelector';
 import useChat from './hooks/useChat';
-import ControlPanel from './components/ControlPanel';
 import ApiKeyGate from './components/ApiKeyGate';
+
+const AvatarCanvas = React.lazy(() => import('./components/AvatarCanvas'));
+const ControlPanel = React.lazy(() => import('./components/ControlPanel'));
 
 function App() {
   const { 
     messages, loading, error, send, transcribe, clear, systemReady,
-    currentEmotion, volume,
+    currentEmotion, volumeRef,
     gameMode, board, gameWinner, gameLoading, startGame, stopGame, playMove
   } = useChat();
 
   const [view, setView] = useState('chat'); // 'chat' | 'control-panel'
   const [apiKey, setApiKey] = useState(sessionStorage.getItem('synthenia_api_key') || '');
+
+  React.useEffect(() => {
+    const handleAuthError = () => {
+      setApiKey('');
+    };
+    window.addEventListener('auth-unauthorized', handleAuthError);
+    return () => {
+      window.removeEventListener('auth-unauthorized', handleAuthError);
+    };
+  }, []);
 
   return (
     <div className="main-layout-container">
@@ -24,7 +35,9 @@ function App() {
       <div className="left-panel">
         {/* Avatar View */}
         <div className="avatar-wrapper">
-          <AvatarCanvas emotion={currentEmotion} volume={volume} />
+          <React.Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>กำลังโหลดอวตาร...</div>}>
+            <AvatarCanvas emotion={currentEmotion} volumeRef={volumeRef} />
+          </React.Suspense>
         </div>
 
         {/* Game Mode Area */}
@@ -126,14 +139,16 @@ function App() {
           {!apiKey ? (
             <ApiKeyGate onSuccess={setApiKey} />
           ) : (
-            <ControlPanel 
-              apiKey={apiKey} 
-              onLogout={() => {
-                sessionStorage.removeItem('synthenia_api_key');
-                setApiKey('');
-              }}
-              onClose={() => setView('chat')}
-            />
+            <React.Suspense fallback={<div style={{ color: 'rgba(255,255,255,0.4)', padding: '20px', textAlign: 'center' }}>กำลังโหลดแดชบอร์ด...</div>}>
+              <ControlPanel 
+                apiKey={apiKey} 
+                onLogout={() => {
+                  sessionStorage.removeItem('synthenia_api_key');
+                  setApiKey('');
+                }}
+                onClose={() => setView('chat')}
+              />
+            </React.Suspense>
           )}
         </div>
       )}

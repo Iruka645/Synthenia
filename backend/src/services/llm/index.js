@@ -22,6 +22,9 @@ class LLMManager {
   // เรียกครั้งเดียวตอน server boot เพื่อ restore ค่าที่เคย switch ไว้จาก DB
   async initialize() {
     try {
+      // Warm cache for all LLM settings
+      await configService.getAll('llm.');
+
       const savedProvider = await configService.get(CONFIG_KEY);
       if (savedProvider && availableProviders.includes(savedProvider)) {
         currentProviderInstance = createLLMProvider(savedProvider);
@@ -36,11 +39,14 @@ class LLMManager {
   }
 
   async chat(messages, options = {}) {
-    const savedModelByProvider = await configService.get('llm.modelByProvider') || {};
+    const [savedModelByProvider, savedModelParams] = await Promise.all([
+      configService.get('llm.modelByProvider').then(v => v || {}),
+      configService.get('llm.modelParams').then(v => v || {})
+    ]);
+
     const defaultModel = savedModelByProvider[currentProviderName] || llmConfig.modelByProvider[currentProviderName];
     const model = options.model || defaultModel;
 
-    const savedModelParams = await configService.get('llm.modelParams') || {};
     const temperature = options.temperature !== undefined ? options.temperature : (savedModelParams.temperature !== undefined ? savedModelParams.temperature : 0.8);
     const top_p = options.top_p !== undefined ? options.top_p : (savedModelParams.top_p !== undefined ? savedModelParams.top_p : 0.9);
     const num_predict = options.num_predict !== undefined ? options.num_predict : (savedModelParams.num_predict !== undefined ? savedModelParams.num_predict : 300);

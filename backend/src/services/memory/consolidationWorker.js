@@ -1,4 +1,4 @@
-const { query } = require('../../db/pool');
+const { query, pool } = require('../../db/pool');
 const embeddingService = require('./embeddingService');
 const { Ollama } = require('ollama');
 require('dotenv').config();
@@ -17,23 +17,67 @@ const ollamaClient = new Ollama({
 });
 
 class ConsolidationWorker {
+  constructor() {
+    this._isRunning = false;
+  }
+
   async runConsolidation() {
+    if (this._isRunning) {
+      console.log('[Memory Consolidation] Already running, skip this trigger.');
+      return { skipped: true };
+    }
+    this._isRunning = true;
+
     console.log('[Memory Consolidation] Starting consolidation job...');
+    const client = await pool.connect();
+    let sessions = [];
     try {
-      // Get all ended sessions that are not consolidated yet and have at least 4 messages
-      const sessionsResult = await query(
+      await client.query('BEGIN');
+      
+      // Select ended sessions using FOR UPDATE SKIP LOCKED
+      const sessionsResult = await client.query(
         `SELECT id, message_count FROM sessions
          WHERE consolidated = FALSE AND ended_at IS NOT NULL AND message_count >= 4
-         ORDER BY id ASC`
+         ORDER BY id ASC
+         LIMIT 20
+         FOR UPDATE SKIP LOCKED`
       );
 
-      const sessions = sessionsResult.rows;
-      console.log(`[Memory Consolidation] Found ${sessions.length} sessions to consolidate.`);
+      sessions = sessionsResult.rows;
+      console.log(`[Memory Consolidation] Locked ${sessions.length} sessions to consolidate.`);
 
-      for (const session of sessions) {
-        console.log(`[Memory Consolidation] Consolidating session ${session.id}...`);
-        
-        // 1. Get messages for the session in chronological order
+      if (sessions.length === 0) {
+        await client.query('COMMIT');
+        return { consolidatedCount: 0 };
+      }
+
+      // Pre-mark locked sessions as consolidated within transaction to release locks quickly
+      const sessionIds = sessions.map(s => s.id);
+      await client.query(
+        `UPDATE sessions SET consolidated = TRUE WHERE id = ANY($1::int[])`,
+        [sessionIds]
+      );
+
+      await client.query('COMMIT');
+    } catch (dbErr) {
+      console.error('[Memory Consolidation] Database transaction error:', dbErr);
+      try {
+        await client.query('ROLLBACK');
+      } catch (rErr) {
+        // ignore
+      }
+      this._isRunning = false;
+      client.release();
+      return;
+    } finally {
+      client.release();
+    }
+
+    // Process sessions outside of transaction to avoid holding locks during long LLM calls
+    for (const session of sessions) {
+      console.log(`[Memory Consolidation] Consolidating session ${session.id}...`);
+      let success = false;
+      try {
         const msgResult = await query(
           `SELECT role, content FROM messages
            WHERE session_id = $1
@@ -42,42 +86,45 @@ class ConsolidationWorker {
         );
 
         const messages = msgResult.rows;
-        if (messages.length === 0) continue;
+        if (messages.length > 0) {
+          // Extract facts using Ollama
+          const facts = await this.extractFactsWithLLM(messages);
+          console.log(`[Memory Consolidation] Extracted ${facts.length} facts from session ${session.id}.`);
 
-        // 2. Extract facts using Ollama
-        const facts = await this.extractFactsWithLLM(messages);
-        console.log(`[Memory Consolidation] Extracted ${facts.length} facts from session ${session.id}.`);
+          // If extract failed (0 facts returned from >= 4 messages), revert status to retry
+          if (facts.length === 0 && messages.length >= 4) {
+            console.warn(`[Memory Consolidation] Session ${session.id} skipped: 0 facts extracted. Reverting consolidated flag to retry.`);
+            await query(`UPDATE sessions SET consolidated = FALSE WHERE id = $1`, [session.id]);
+            continue;
+          }
 
-        // ⚠️ ถ้า extract ได้ 0 facts ทั้งที่มี messages อยู่ → น่าจะเกิด error/timeout
-        // ไม่ mark เป็น consolidated เพื่อให้ retry ได้ในรอบถัดไป
-        if (facts.length === 0 && messages.length >= 4) {
-          console.warn(`[Memory Consolidation] Session ${session.id} skipped: 0 facts extracted from ${messages.length} messages. Will retry in next consolidation run.`);
-          continue;
+          // Upsert each fact
+          for (const fact of facts) {
+            await this.upsertSemanticFact(fact, session.id);
+          }
         }
-
-        // 3. Upsert each fact
-        for (const fact of facts) {
-          await this.upsertSemanticFact(fact, session.id);
-        }
-
-        // 4. Mark session as consolidated (เฉพาะเมื่อ facts ถูก extract สำเร็จ)
-        await query(
-          `UPDATE sessions
-           SET consolidated = TRUE
-           WHERE id = $1`,
-          [session.id]
-        );
+        success = true;
         console.log(`[Memory Consolidation] Session ${session.id} consolidated successfully.`);
+      } catch (sessionErr) {
+        console.error(`[Memory Consolidation] Failed to process session ${session.id}:`, sessionErr);
+        // Revert consolidated flag to retry on next run
+        try {
+          await query(`UPDATE sessions SET consolidated = FALSE WHERE id = $1`, [session.id]);
+        } catch (dbUpdateErr) {
+          console.error(`[Memory Consolidation] Failed to revert consolidated status for session ${session.id}:`, dbUpdateErr);
+        }
       }
+    }
 
-      // 5. Update Reflective Summary as well if needed (e.g., if there are new consolidated sessions)
+    try {
       if (sessions.length > 0) {
         await this.generateReflectiveSummary();
       }
-
       console.log('[Memory Consolidation] Consolidation job complete!');
-    } catch (error) {
-      console.error('[Memory Consolidation] Error during consolidation:', error);
+    } catch (summaryErr) {
+      console.error('[Memory Consolidation] Error generating reflective summary:', summaryErr);
+    } finally {
+      this._isRunning = false;
     }
   }
 

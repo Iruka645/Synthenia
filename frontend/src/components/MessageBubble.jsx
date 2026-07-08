@@ -1,30 +1,30 @@
 import React from 'react';
 
-export const MessageBubble = ({ message }) => {
-  const isUser = message.sender === 'user';
-  
-  // Mapping emotion to emoji
-  const getEmotionEmoji = (emotion) => {
-    switch (emotion) {
-      case 'happy': return '😊';
-      case 'laugh': return '😆';
-      case 'embarrassed': return '😳';
-      case 'annoyed': return '😒';
-      case 'sad': return '😢';
-      case 'thinking': return '🤔';
-      case 'surprised': return '😲';
-      case 'neutral':
-      default:
-        return '👧';
-    }
-  };
+// Mapping emotion to emoji
+const getEmotionEmoji = (emotion) => {
+  switch (emotion) {
+    case 'happy': return '😊';
+    case 'laugh': return '😆';
+    case 'embarrassed': return '😳';
+    case 'annoyed': return '😒';
+    case 'sad': return '😢';
+    case 'thinking': return '🤔';
+    case 'surprised': return '😲';
+    case 'neutral':
+    default:
+      return '👧';
+  }
+};
 
-  // Format the time as HH:MM
-  const formatTime = (dateObj) => {
-    if (!dateObj) return '';
-    const date = new Date(dateObj);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+// Format the time as HH:MM
+const formatTime = (dateObj) => {
+  if (!dateObj) return '';
+  const date = new Date(dateObj);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+export const MessageBubble = React.memo(({ message }) => {
+  const isUser = message.sender === 'user';
 
   return (
     <div className={`chat-bubble-container ${isUser ? 'user-align' : 'assistant-align'}`}>
@@ -53,6 +53,6 @@ export const MessageBubble = ({ message }) => {
       )}
     </div>
   );
-};
+});
 
 export default MessageBubble;

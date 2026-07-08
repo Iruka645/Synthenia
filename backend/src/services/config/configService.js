@@ -1,5 +1,7 @@
 const { query } = require('../../db/pool');
 
+const NOT_FOUND = Symbol('config-not-found');
+
 class ConfigService {
   constructor() {
     this._cache = new Map();
@@ -7,7 +9,8 @@ class ConfigService {
 
   async get(key, defaultValue = null) {
     if (this._cache.has(key)) {
-      return this._cache.get(key);
+      const cached = this._cache.get(key);
+      return cached === NOT_FOUND ? defaultValue : cached;
     }
 
     try {
@@ -17,6 +20,7 @@ class ConfigService {
         this._cache.set(key, value);
         return value;
       }
+      this._cache.set(key, NOT_FOUND);
     } catch (err) {
       console.error(`[ConfigService] Error reading key "${key}":`, err.message);
     }

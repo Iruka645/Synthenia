@@ -11,6 +11,7 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState(null);
   const [error, setError] = useState(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   // Preview States
   const [testText, setTestText] = useState('สวัสดีค่ะ เสียงของฉันแปลกไปหรือเปล่าคะ?');
@@ -18,12 +19,12 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
   const [playError, setPlayError] = useState(null);
 
   useEffect(() => {
-    if (config) {
+    if (config && !isDirty) {
       setEnabled(config['voiceConversion.enabled'] || false);
       setPitch(config['voiceConversion.pitch'] || 0);
       setIndexRate(config['voiceConversion.indexRate'] || 0.4);
     }
-  }, [config]);
+  }, [config, isDirty]);
 
   const handleSave = async (updatedEnabled = enabled) => {
     setSaving(true);
@@ -39,6 +40,7 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
     try {
       await updateVoiceConversionConfig(data, apiKey);
       setSuccessMsg('บันทึกการตั้งค่า Voice Conversion สำเร็จ');
+      setIsDirty(false); // Clear dirty flag on success
       onConfigChange();
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err) {
@@ -63,6 +65,7 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
     try {
       await resetConfigKey(key, apiKey);
       setSuccessMsg('รีเซ็ตการตั้งค่าเรียบร้อยแล้ว');
+      setIsDirty(false); // Clear dirty flag on success
       onConfigChange();
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err) {
@@ -152,7 +155,7 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
           max={12}
           step={1}
           value={pitch}
-          onChange={setPitch}
+          onChange={(val) => { setPitch(val); setIsDirty(true); }}
           valueSuffix=" semitones"
           helpText="ปรับแต่งความทุ้ม/แหลมของเสียง (-12 คีย์ชายทุ้ม / 0 เสียงตาม provider / +12 คีย์หญิงแหลมสูง)"
         />
@@ -175,7 +178,7 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
           max={1.0}
           step={0.05}
           value={indexRate}
-          onChange={setIndexRate}
+          onChange={(val) => { setIndexRate(val); setIsDirty(true); }}
           helpText="ค่าน้อย = ได้อารมณ์เสียงพูดที่ลื่นไหลเป็นธรรมชาติกว่า / ค่ามาก = เลียนแบบโมเดลเป๊ะแต่อาจพังหุ่นยนต์"
         />
       </div>

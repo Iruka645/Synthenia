@@ -1,4 +1,13 @@
-const { pool } = require('./pool');
+const { Pool } = require('pg');
+require('dotenv').config();
+
+const migrationPool = new Pool({
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT) || 5432,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+});
 
 const schema = `
 -- 1. Enable pgvector extension
@@ -45,6 +54,20 @@ CREATE TABLE IF NOT EXISTS semantic_facts (
   last_accessed_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),
   superseded_by INT REFERENCES semantic_facts(id)
+);
+
+-- 4.5. Tier: Semantic Memory Archive
+CREATE TABLE IF NOT EXISTS semantic_facts_archive (
+  id INT PRIMARY KEY,
+  fact_text TEXT,
+  category VARCHAR(50),
+  importance_score FLOAT,
+  confidence FLOAT,
+  source_session_id INT,
+  access_count INT,
+  last_accessed_at TIMESTAMP,
+  created_at TIMESTAMP,
+  archived_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_facts_embedding ON semantic_facts
@@ -98,7 +121,7 @@ CREATE INDEX IF NOT EXISTS idx_config_log_key ON config_change_log(config_key);
 `;
 
 async function initDb() {
-  const client = await pool.connect();
+  const client = await migrationPool.connect();
   try {
     console.log('Connecting to database and running migrations...');
     
@@ -230,8 +253,12 @@ async function initDb() {
     process.exit(1);
   } finally {
     client.release();
-    await pool.end();
+    await migrationPool.end();
   }
 }
 
-initDb();
+if (require.main === module) {
+  initDb();
+}
+
+module.exports = { initDb };

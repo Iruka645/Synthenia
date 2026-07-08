@@ -1,6 +1,14 @@
+const crypto = require('crypto');
 require('dotenv').config();
 
 const CONTROL_PANEL_API_KEY = process.env.CONTROL_PANEL_API_KEY;
+
+function safeCompare(a, b) {
+  const bufA = Buffer.from(a || '');
+  const bufB = Buffer.from(b || '');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 function apiKeyAuth(req, res, next) {
   if (!CONTROL_PANEL_API_KEY) {
@@ -11,7 +19,7 @@ function apiKeyAuth(req, res, next) {
 
   const providedKey = req.headers['x-api-key'];
 
-  if (!providedKey || providedKey !== CONTROL_PANEL_API_KEY) {
+  if (!providedKey || !safeCompare(providedKey, CONTROL_PANEL_API_KEY)) {
     return res.status(401).json({ error: 'Unauthorized: API key ไม่ถูกต้องหรือไม่ได้ระบุ' });
   }
 

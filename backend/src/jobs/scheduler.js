@@ -10,43 +10,52 @@ function initScheduler() {
 
   // 1. Run memory consolidation every day at 3:00 AM
   cron.schedule('0 3 * * *', async () => {
-    const autoConsolidate = await configService.get('memory.autoConsolidation', true);
-    if (autoConsolidate !== false) {
-      console.log('[Scheduler] Triggering scheduled memory consolidation...');
-      await consolidationWorker.runConsolidation();
-    } else {
-      console.log('[Scheduler] Scheduled memory consolidation is disabled by config.');
+    try {
+      const autoConsolidate = await configService.get('memory.autoConsolidation', true);
+      if (autoConsolidate !== false) {
+        console.log('[Scheduler] Triggering scheduled memory consolidation...');
+        await consolidationWorker.runConsolidation();
+      } else {
+        console.log('[Scheduler] Scheduled memory consolidation is disabled by config.');
+      }
+    } catch (err) {
+      console.error('[Scheduler] Error in consolidation cron task:', err);
     }
   });
 
   // 2. Run memory decay job every Sunday at 4:00 AM
   cron.schedule('0 4 * * 0', async () => {
-    const autoConsolidate = await configService.get('memory.autoConsolidation', true);
-    if (autoConsolidate !== false) {
-      console.log('[Scheduler] Triggering scheduled memory decay...');
-      await decayWorker.runDecay();
-    } else {
-      console.log('[Scheduler] Scheduled memory decay is disabled by config.');
+    try {
+      const autoConsolidate = await configService.get('memory.autoConsolidation', true);
+      if (autoConsolidate !== false) {
+        console.log('[Scheduler] Triggering scheduled memory decay...');
+        await decayWorker.runDecay();
+      } else {
+        console.log('[Scheduler] Scheduled memory decay is disabled by config.');
+      }
+    } catch (err) {
+      console.error('[Scheduler] Error in decay cron task:', err);
     }
   });
 
   // 3. Run audio cleanup job every day at 2:00 AM
-  cron.schedule('0 2 * * *', () => {
+  cron.schedule('0 2 * * *', async () => {
     console.log('[Scheduler] Triggering scheduled audio cleanup...');
     try {
       const audioDir = path.join(__dirname, '..', '..', '..', 'audio');
-      if (fs.existsSync(audioDir)) {
-        const files = fs.readdirSync(audioDir);
+      const exists = await fs.promises.access(audioDir).then(() => true).catch(() => false);
+      if (exists) {
+        const files = await fs.promises.readdir(audioDir);
         const cutoff = Date.now() - 24 * 60 * 60 * 1000; // keep last 24 hours
         let count = 0;
-        files.forEach(file => {
+        for (const file of files) {
           const filePath = path.join(audioDir, file);
-          const stat = fs.statSync(filePath);
+          const stat = await fs.promises.stat(filePath);
           if (stat.isFile() && stat.mtimeMs < cutoff) {
-            fs.unlinkSync(filePath);
+            await fs.promises.unlink(filePath);
             count++;
           }
-        });
+        }
         console.log(`[Scheduler] Audio cleanup complete. Deleted ${count} files.`);
       } else {
         console.warn(`[Scheduler] Audio directory not found at: ${audioDir}`);

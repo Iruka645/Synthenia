@@ -20,9 +20,11 @@ let conversationHistory = [{ role: "system", content: PERSONALITY }];
 async function chat(userMessage, precalculatedEmbedding = null) {
   let memoryContext = "";
   try {
-    const { facts, usedFallback, fallbackMessages } =
-      await memoryRetrievalService.retrieve(userMessage, 5, precalculatedEmbedding);
-    const reflectiveSummary = await memoryRetrievalService.getLatestReflectiveSummary();
+    const [retrievalResult, reflectiveSummary] = await Promise.all([
+      memoryRetrievalService.retrieve(userMessage, 5, precalculatedEmbedding),
+      memoryRetrievalService.getLatestReflectiveSummary()
+    ]);
+    const { facts, usedFallback, fallbackMessages } = retrievalResult;
 
     memoryContext = buildMemoryContext({ reflectiveSummary, facts, usedFallback, fallbackMessages });
   } catch (memErr) {

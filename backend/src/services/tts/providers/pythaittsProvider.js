@@ -17,6 +17,11 @@ class PyThaiTTSProvider extends BaseProvider {
       let stdoutData = '';
       let stderrData = '';
 
+      const timeoutId = setTimeout(() => {
+        pyProcess.kill();
+        reject(new Error('PyThaiTTS synthesis timeout (30s)'));
+      }, 30000);
+
       pyProcess.stdout.on('data', (data) => {
         stdoutData += data.toString();
       });
@@ -26,6 +31,8 @@ class PyThaiTTSProvider extends BaseProvider {
       });
 
       pyProcess.on('close', (code) => {
+        clearTimeout(timeoutId);
+        
         if (code !== 0) {
           console.error(`Python PyThaiTTS process exited with code ${code}. Error: ${stderrData}`);
           return reject(new Error(stderrData || `PyThaiTTS execution failed with code ${code}`));

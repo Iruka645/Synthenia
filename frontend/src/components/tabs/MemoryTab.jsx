@@ -10,6 +10,7 @@ export const MemoryTab = ({ config, onConfigChange, apiKey }) => {
   const [triggering, setTriggering] = useState(null); // 'consolidate' | 'decay'
   const [msg, setMsg] = useState(null);
   const [error, setError] = useState(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   const fetchStats = async () => {
     setLoadingStats(true);
@@ -28,10 +29,10 @@ export const MemoryTab = ({ config, onConfigChange, apiKey }) => {
   }, []);
 
   useEffect(() => {
-    if (config) {
+    if (config && !isDirty) {
       setAutoConsolidation(config['memory.autoConsolidation'] !== false);
     }
-  }, [config]);
+  }, [config, isDirty]);
 
   const handleToggleAutoConsolidation = async (val) => {
     setAutoConsolidation(val);
@@ -40,10 +41,11 @@ export const MemoryTab = ({ config, onConfigChange, apiKey }) => {
     try {
       await updateMemoryConfig({ autoConsolidation: val }, apiKey);
       setMsg(`บันทึกสถานะการรันอัตโนมัติเป็น: ${val ? 'เปิด' : 'ปิด'}`);
+      setIsDirty(false); // Clear dirty flag on success
       onConfigChange();
       setTimeout(() => setMsg(null), 3000);
     } catch (err) {
-      setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการบันทึกค่า');
+      setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกค่า');
     }
   };
 
@@ -87,10 +89,11 @@ export const MemoryTab = ({ config, onConfigChange, apiKey }) => {
     try {
       await resetConfigKey('memory.autoConsolidation', apiKey);
       setMsg('รีเซ็ตการจัดเก็บอัตโนมัติสำเร็จ');
+      setIsDirty(false); // Clear dirty flag on success
       onConfigChange();
       setTimeout(() => setMsg(null), 3000);
     } catch (err) {
-      setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการรีเซ็ตค่า');
+      setError(err.message || 'เกิดข้อผิดพลาดในการรีเซ็ตค่า');
     }
   };
 
@@ -221,7 +224,10 @@ export const MemoryTab = ({ config, onConfigChange, apiKey }) => {
         <ConfigToggle
           label="เปิดรันบีบอัดอัตโนมัติรายวัน (Auto Cron Jobs)"
           checked={autoConsolidation}
-          onChange={handleToggleAutoConsolidation}
+          onChange={(val) => {
+            setIsDirty(true);
+            handleToggleAutoConsolidation(val);
+          }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 4px' }}>
           <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>

@@ -6,12 +6,19 @@ const providers = {
   siliconflow: SiliconFlowProvider,
 };
 
+const singletons = {};
+
 function createLLMProvider(name) {
-  const ProviderClass = providers[name.toLowerCase()];
+  const lowerName = name.toLowerCase();
+  const ProviderClass = providers[lowerName];
   if (!ProviderClass) {
     throw new Error(`Unknown LLM provider: ${name}. Available: ${Object.keys(providers).join(', ')}`);
   }
-  return new ProviderClass();
+  
+  if (!singletons[lowerName]) {
+    singletons[lowerName] = new ProviderClass();
+  }
+  return singletons[lowerName];
 }
 
 module.exports = {

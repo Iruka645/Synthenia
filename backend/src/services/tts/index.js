@@ -11,6 +11,13 @@ let currentProviderInstance = createTTSProvider(currentProviderName);
 class TTSManager {
   async initialize() {
     try {
+      // Warm cache for TTS, Voice Conversion, and Memory settings
+      await Promise.all([
+        configService.getAll('tts.'),
+        configService.getAll('voiceConversion.'),
+        configService.getAll('memory.'),
+      ]);
+
       const savedProvider = await configService.get(CONFIG_KEY);
       if (savedProvider && availableProviders.includes(savedProvider)) {
         currentProviderInstance = createTTSProvider(savedProvider);
@@ -24,6 +31,27 @@ class TTSManager {
     }
   }
 
+  async _resolveVoiceConversionSettings() {
+    const [enabledVal, savedPitch, savedIndexRate] = await Promise.all([
+      configService.get('voiceConversion.enabled'),
+      configService.get('voiceConversion.pitch'),
+      configService.get('voiceConversion.indexRate'),
+    ]);
+    return {
+      enabled: enabledVal !== null ? enabledVal === true : process.env.VOICE_CONVERSION_ENABLED === 'true',
+      pitch: savedPitch !== null ? parseInt(savedPitch, 10) : (process.env.VOICE_CONVERSION_PITCH ? parseInt(process.env.VOICE_CONVERSION_PITCH, 10) : 0),
+      indexRate: savedIndexRate !== null ? parseFloat(savedIndexRate) : (process.env.VOICE_CONVERSION_INDEX_RATE ? parseFloat(process.env.VOICE_CONVERSION_INDEX_RATE) : 0.4),
+    };
+  }
+
+  async _maybeConvert(audioFilename) {
+    const vcSettings = await this._resolveVoiceConversionSettings();
+    if (vcSettings.enabled) {
+      return await voiceConversionService.convert(audioFilename, vcSettings.pitch, vcSettings.indexRate);
+    }
+    return audioFilename;
+  }
+
   async generate(text) {
     if (!text || typeof text !== 'string' || !text.trim()) {
       throw new Error("Text input to TTS cannot be empty.");
@@ -32,20 +60,7 @@ class TTSManager {
     try {
       console.log(`[TTS Manager] Synthesizing text using provider: ${currentProviderName}`);
       let audioFilename = await currentProviderInstance.synthesize(text.trim());
-      
-      const enabledVal = await configService.get('voiceConversion.enabled');
-      const isVoiceConversionEnabled = enabledVal !== null ? (enabledVal === true) : (process.env.VOICE_CONVERSION_ENABLED === 'true');
-
-      if (isVoiceConversionEnabled) {
-        const savedPitch = await configService.get('voiceConversion.pitch');
-        const pitch = savedPitch !== null ? parseInt(savedPitch, 10) : (process.env.VOICE_CONVERSION_PITCH ? parseInt(process.env.VOICE_CONVERSION_PITCH, 10) : 0);
-        
-        const savedIndexRate = await configService.get('voiceConversion.indexRate');
-        const indexRate = savedIndexRate !== null ? parseFloat(savedIndexRate) : (process.env.VOICE_CONVERSION_INDEX_RATE ? parseFloat(process.env.VOICE_CONVERSION_INDEX_RATE) : 0.4);
-        
-        audioFilename = await voiceConversionService.convert(audioFilename, pitch, indexRate);
-      }
-      
+      audioFilename = await this._maybeConvert(audioFilename);
       return audioFilename;
     } catch (error) {
       console.error(`[TTS Manager] Synthesis failed using provider ${currentProviderName}:`, error.message);
@@ -56,20 +71,7 @@ class TTSManager {
         try {
           const fallbackProvider = createTTSProvider('gtts');
           let audioFilename = await fallbackProvider.synthesize(text.trim());
-          
-          const enabledVal = await configService.get('voiceConversion.enabled');
-          const isVoiceConversionEnabled = enabledVal !== null ? (enabledVal === true) : (process.env.VOICE_CONVERSION_ENABLED === 'true');
-
-          if (isVoiceConversionEnabled) {
-            const savedPitch = await configService.get('voiceConversion.pitch');
-            const pitch = savedPitch !== null ? parseInt(savedPitch, 10) : (process.env.VOICE_CONVERSION_PITCH ? parseInt(process.env.VOICE_CONVERSION_PITCH, 10) : 0);
-            
-            const savedIndexRate = await configService.get('voiceConversion.indexRate');
-            const indexRate = savedIndexRate !== null ? parseFloat(savedIndexRate) : (process.env.VOICE_CONVERSION_INDEX_RATE ? parseFloat(process.env.VOICE_CONVERSION_INDEX_RATE) : 0.4);
-            
-            audioFilename = await voiceConversionService.convert(audioFilename, pitch, indexRate);
-          }
-          
+          audioFilename = await this._maybeConvert(audioFilename);
           return audioFilename;
         } catch (fallbackError) {
           console.error(`[TTS Manager] Fallback to gTTS also failed:`, fallbackError.message);

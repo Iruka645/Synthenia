@@ -4,20 +4,29 @@ const { query } = require('../db/pool');
 const consolidationWorker = require('../services/memory/consolidationWorker');
 const decayWorker = require('../services/memory/decayWorker');
 const apiKeyAuth = require('../middleware/apiKeyAuth');
+const GeminiTTSProvider = require('../services/tts/providers/geminittsProvider');
+
+const geminiProviderSingleton = new GeminiTTSProvider();
 
 // GET /api/memory/stats
 router.get('/stats', async (req, res) => {
   try {
-    const factsActiveRes = await query(`SELECT COUNT(*)::int AS count FROM semantic_facts WHERE superseded_by IS NULL`);
-    const factsTotalRes = await query(`SELECT COUNT(*)::int AS count FROM semantic_facts`);
-    const sessionsUnconsolidatedRes = await query(`SELECT COUNT(*)::int AS count FROM sessions WHERE consolidated = FALSE AND ended_at IS NOT NULL AND message_count >= 4`);
-    const sessionsTotalRes = await query(`SELECT COUNT(*)::int AS count FROM sessions`);
-    const messagesTotalRes = await query(`SELECT COUNT(*)::int AS count FROM messages`);
+    const [
+      factsActiveRes,
+      factsTotalRes,
+      sessionsUnconsolidatedRes,
+      sessionsTotalRes,
+      messagesTotalRes
+    ] = await Promise.all([
+      query(`SELECT COUNT(*)::int AS count FROM semantic_facts WHERE superseded_by IS NULL`),
+      query(`SELECT COUNT(*)::int AS count FROM semantic_facts`),
+      query(`SELECT COUNT(*)::int AS count FROM sessions WHERE consolidated = FALSE AND ended_at IS NOT NULL AND message_count >= 4`),
+      query(`SELECT COUNT(*)::int AS count FROM sessions`),
+      query(`SELECT COUNT(*)::int AS count FROM messages`)
+    ]);
     
     // Get Gemini TTS Quota Status
-    const GeminiTTSProvider = require('../services/tts/providers/geminittsProvider');
-    const geminiProvider = new GeminiTTSProvider();
-    const ttsQuota = await geminiProvider.getQuotaStatus();
+    const ttsQuota = await geminiProviderSingleton.getQuotaStatus();
 
     res.json({
       factsActive: factsActiveRes.rows[0].count,
