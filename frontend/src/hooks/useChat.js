@@ -177,6 +177,10 @@ export const useChat = () => {
   const send = useCallback(async (text) => {
     if (!text || !text.trim()) return;
 
+    if (audioAnalyserRef.current) {
+      audioAnalyserRef.current.initContext();
+    }
+
     const trimmedText = text.trim();
     // Abort any previous in-flight request and start a fresh one
     if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -324,6 +328,10 @@ export const useChat = () => {
 
   const playMove = useCallback(async (index) => {
     if (board[index] !== null || gameWinner || gameLoading) return;
+
+    if (audioAnalyserRef.current) {
+      audioAnalyserRef.current.initContext();
+    }
 
     const nextBoard = [...board];
     nextBoard[index] = 'X';

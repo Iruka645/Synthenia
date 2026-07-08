@@ -16,7 +16,7 @@ class MemoryRetrievalService {
       // 2. Hybrid search on active semantic_facts
       // Get top 20 similar facts based on vector cosine distance
       const factsResult = await query(
-        `SELECT id, fact_text, category, importance_score, created_at,
+        `SELECT id, fact_text, category, memory_type, importance_score, confidence, created_at,
                 (1 - (embedding <=> $1::vector)) AS similarity
          FROM semantic_facts
          WHERE superseded_by IS NULL
@@ -28,11 +28,18 @@ class MemoryRetrievalService {
       let facts = factsResult.rows;
 
       // 3. Re-rank using the formula:
-      // score = (similarity * 0.6) + (importance_score * 0.3) + (recency_factor * 0.1)
+      // score = ((similarity * 0.6) + (importance_score * 0.3) + (recency_factor * 0.1) + TYPE_BOOST) * (0.5 + confidence * 0.5)
       const now = new Date();
+      const TYPE_BOOST = {
+        identity: 0.15, goal: 0.1, relationship: 0.05,
+        preference: 0, personality: 0, skill: 0,
+        episode: -0.05, schedule: 0, temporary: -0.1,
+      };
+
       facts = facts.map(fact => {
         const similarity = parseFloat(fact.similarity || 0);
         const importance = parseFloat(fact.importance_score || 0.5);
+        const confidence = parseFloat(fact.confidence !== null && fact.confidence !== undefined ? fact.confidence : 1.0);
         
         // Calculate recency factor (exponential decay over 30 days)
         const createdDate = new Date(fact.created_at);
@@ -40,8 +47,12 @@ class MemoryRetrievalService {
         const diffDays = diffTime / (1000 * 60 * 60 * 24);
         const recencyFactor = Math.exp(-diffDays / 30);
 
-        const score = (similarity * 0.6) + (importance * 0.3) + (recencyFactor * 0.1);
+        const typeBoost = TYPE_BOOST[fact.memory_type] || 0;
+        let score = (similarity * 0.6) + (importance * 0.3) + (recencyFactor * 0.1) + typeBoost;
         
+        // Scale score using confidence multiplier
+        score = score * (0.5 + confidence * 0.5);
+
         return {
           ...fact,
           similarity,

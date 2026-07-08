@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS semantic_facts (
   id SERIAL PRIMARY KEY,
   fact_text TEXT NOT NULL,
   category VARCHAR(50),
+  memory_type VARCHAR(30) NOT NULL DEFAULT 'episode',
   embedding VECTOR(1024),
   importance_score FLOAT DEFAULT 0.5,
   confidence FLOAT DEFAULT 1.0,
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS semantic_facts_archive (
   id INT PRIMARY KEY,
   fact_text TEXT,
   category VARCHAR(50),
+  memory_type VARCHAR(30),
   importance_score FLOAT,
   confidence FLOAT,
   source_session_id INT,
@@ -74,6 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_facts_embedding ON semantic_facts
   USING ivfflat (embedding vector_cosine_ops) WITH (lists = 50);
 CREATE INDEX IF NOT EXISTS idx_facts_category ON semantic_facts(category);
 CREATE INDEX IF NOT EXISTS idx_facts_active ON semantic_facts(superseded_by) WHERE superseded_by IS NULL;
+CREATE INDEX IF NOT EXISTS idx_facts_memory_type ON semantic_facts(memory_type);
 
 -- 5. Tier: Reflective Memory
 CREATE TABLE IF NOT EXISTS reflective_summary (
@@ -173,6 +176,7 @@ async function initDb() {
         id SERIAL PRIMARY KEY,
         fact_text TEXT NOT NULL,
         category VARCHAR(50),
+        memory_type VARCHAR(30) NOT NULL DEFAULT 'episode',
         embedding VECTOR(1024),
         importance_score FLOAT DEFAULT 0.5,
         confidence FLOAT DEFAULT 1.0,
@@ -185,13 +189,31 @@ async function initDb() {
     `);
     console.log('✔ semantic_facts table verified.');
 
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS semantic_facts_archive (
+        id INT PRIMARY KEY,
+        fact_text TEXT,
+        category VARCHAR(50),
+        memory_type VARCHAR(30),
+        importance_score FLOAT,
+        confidence FLOAT,
+        source_session_id INT,
+        access_count INT,
+        last_accessed_at TIMESTAMP,
+        created_at TIMESTAMP,
+        archived_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    console.log('✔ semantic_facts_archive table verified.');
+
     try {
       await client.query('CREATE INDEX IF NOT EXISTS idx_facts_category ON semantic_facts(category);');
       await client.query('CREATE INDEX IF NOT EXISTS idx_facts_active ON semantic_facts(superseded_by) WHERE superseded_by IS NULL;');
       await client.query('CREATE INDEX IF NOT EXISTS idx_facts_embedding ON semantic_facts USING ivfflat (embedding vector_cosine_ops) WITH (lists = 50);');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_facts_memory_type ON semantic_facts(memory_type);');
       console.log('✔ semantic_facts indexes verified.');
     } catch (idxErr) {
-      console.warn('⚠️ Warning creating semantic_facts ivfflat index:', idxErr.message);
+      console.warn('⚠️ Warning creating semantic_facts indexes:', idxErr.message);
     }
 
     await client.query(`

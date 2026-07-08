@@ -93,7 +93,14 @@ class LLMManager {
           console.error('[LLM Manager] Fallback to Ollama also failed:', fallbackError.message);
         }
       }
-      throw error;
+      
+      // If we reach here, all providers failed. Return a charming, safe default response.
+      return {
+        reply: "ขอโทษนะพ่อ ตอนนี้ซินมึนๆ นิดหน่อยน่ะ... ไว้ค่อยคุยกันใหม่นะ",
+        emotion: "sad",
+        usedFallback: true,
+        isSystemFallback: true
+      };
     }
   }
 

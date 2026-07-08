@@ -2,7 +2,7 @@ const axios = require('axios');
 require('dotenv').config();
 const BaseLLMProvider = require('./baseLLMProvider');
 
-const SILICONFLOW_BASE_URL = process.env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1';
+const SILICONFLOW_BASE_URL = process.env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.com/v1';
 const SILICONFLOW_API_KEY = process.env.SILICONFLOW_API_KEY;
 const CHAT_TIMEOUT_MS = 60_000; // cloud API ไม่ควรช้าเท่า local
 
@@ -42,20 +42,6 @@ class SiliconFlowProvider extends BaseLLMProvider {
     }
 
     return this._parseContent(rawContent);
-  }
-
-  _parseContent(rawContent) {
-    let aiContent = rawContent;
-    if (aiContent.includes('```')) {
-      const match = aiContent.match(/```(?:json)?([\s\S]*?)```/);
-      if (match) aiContent = match[1];
-    }
-    try {
-      return JSON.parse(aiContent.trim());
-    } catch (err) {
-      console.error('[SiliconFlowProvider] JSON parse ล้มเหลว, raw content:', aiContent);
-      return { reply: aiContent.trim() || 'ขอโทษค่ะ พูดไม่ค่อยรู้เรื่องตอนนี้', emotion: 'neutral' };
-    }
   }
 }
 

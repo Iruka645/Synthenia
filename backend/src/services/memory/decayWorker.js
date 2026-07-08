@@ -14,20 +14,40 @@ class DecayWorker {
 
     console.log('[Memory Decay] Starting memory decay job...');
     try {
-      // 1. Decay importance_score of facts not accessed for more than 60 days
-      const decayResult = await query(
-        `UPDATE semantic_facts
-         SET importance_score = importance_score * 0.9
-         WHERE (last_accessed_at < NOW() - INTERVAL '60 days' OR (last_accessed_at IS NULL AND created_at < NOW() - INTERVAL '60 days'))
-           AND superseded_by IS NULL`
-      );
-      console.log(`[Memory Decay] Decayed importance score for ${decayResult.rowCount} facts.`);
+      // 1. Decay importance_score of facts based on memory_type decay policy
+      const DECAY_POLICY = {
+        identity:    { neverDecay: true },
+        goal:        { decayRate: 0.97, idleDays: 90 },
+        relationship:{ decayRate: 0.95, idleDays: 90 },
+        skill:       { decayRate: 0.95, idleDays: 90 },
+        personality: { decayRate: 0.95, idleDays: 90 },
+        preference:  { decayRate: 0.9,  idleDays: 60 },  // original policy
+        episode:     { decayRate: 0.85, idleDays: 30 },
+        schedule:    { decayRate: 0.7,  idleDays: 7  },  // short-term, decay fast
+        temporary:   { decayRate: 0.6,  idleDays: 3  },
+      };
 
-      // 2. Find facts with importance_score < 0.1 to archive
+      let totalDecayedRows = 0;
+      for (const [type, policy] of Object.entries(DECAY_POLICY)) {
+        if (policy.neverDecay) continue;
+        const decayResult = await query(
+          `UPDATE semantic_facts
+           SET importance_score = importance_score * $1
+           WHERE memory_type = $2
+             AND superseded_by IS NULL
+             AND (last_accessed_at < NOW() - ($3 || ' days')::interval
+                  OR (last_accessed_at IS NULL AND created_at < NOW() - ($3 || ' days')::interval))`,
+          [policy.decayRate, type, policy.idleDays]
+        );
+        totalDecayedRows += decayResult.rowCount;
+      }
+      console.log(`[Memory Decay] Decayed importance score for total of ${totalDecayedRows} facts.`);
+
+      // 2. Find facts with importance_score < 0.1 to archive (exclude memory_type = 'identity')
       const toArchiveResult = await query(
         `SELECT id
          FROM semantic_facts
-         WHERE importance_score < 0.1 AND superseded_by IS NULL`
+         WHERE importance_score < 0.1 AND superseded_by IS NULL AND memory_type != 'identity'`
       );
 
       const toArchive = toArchiveResult.rows;
@@ -36,10 +56,10 @@ class DecayWorker {
       if (toArchive.length > 0) {
         const ids = toArchive.map(fact => fact.id);
         
-        // Batch copy to archive table
+        // Batch copy to archive table including memory_type
         await query(
-          `INSERT INTO semantic_facts_archive (id, fact_text, category, importance_score, confidence, source_session_id, access_count, last_accessed_at, created_at)
-           SELECT id, fact_text, category, importance_score, confidence, source_session_id, access_count, last_accessed_at, created_at
+          `INSERT INTO semantic_facts_archive (id, fact_text, category, memory_type, importance_score, confidence, source_session_id, access_count, last_accessed_at, created_at)
+           SELECT id, fact_text, category, memory_type, importance_score, confidence, source_session_id, access_count, last_accessed_at, created_at
            FROM semantic_facts
            WHERE id = ANY($1::int[])
            ON CONFLICT (id) DO NOTHING`,

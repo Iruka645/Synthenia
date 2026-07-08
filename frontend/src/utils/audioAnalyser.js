@@ -7,18 +7,25 @@ export class AudioAnalyser {
     this.animationFrameId = null;
   }
 
+  initContext() {
+    try {
+      if (!this.audioContext) {
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (this.audioContext.state === 'suspended') {
+        this.audioContext.resume();
+        console.log('[AudioAnalyser] AudioContext resumed successfully.');
+      }
+    } catch (e) {
+      console.warn('[AudioAnalyser] Failed to initialize AudioContext:', e);
+    }
+  }
+
   analyse(audioElement, onVolumeChange) {
     this.stop();
 
     try {
-      // Initialize AudioContext lazily on user interaction
-      if (!this.audioContext) {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      }
-
-      if (this.audioContext.state === 'suspended') {
-        this.audioContext.resume();
-      }
+      this.initContext();
 
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;

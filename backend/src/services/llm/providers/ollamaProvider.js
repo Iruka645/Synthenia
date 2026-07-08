@@ -41,20 +41,6 @@ class OllamaProvider extends BaseLLMProvider {
 
     return this._parseContent(response.message.content);
   }
-
-  _parseContent(rawContent) {
-    let aiContent = rawContent;
-    if (aiContent.includes("```")) {
-      const match = aiContent.match(/```(?:json)?([\s\S]*?)```/);
-      if (match) aiContent = match[1];
-    }
-    try {
-      return JSON.parse(aiContent.trim());
-    } catch (err) {
-      console.error("[OllamaProvider] JSON parse ล้มเหลว, raw content:", aiContent);
-      return { reply: aiContent.trim() || "ขอโทษค่ะ พูดไม่ค่อยรู้เรื่องตอนนี้", emotion: "neutral" };
-    }
-  }
 }
 
 module.exports = OllamaProvider;
