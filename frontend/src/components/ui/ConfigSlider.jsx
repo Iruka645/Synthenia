@@ -7,8 +7,8 @@ export const ConfigSlider = ({ label, min, max, step, value, onChange, disabled,
       flexDirection: 'column',
       gap: '8px',
       padding: '16px',
-      background: 'rgba(255, 255, 255, 0.03)',
-      border: '1px solid rgba(255, 255, 255, 0.05)',
+      background: 'var(--card)',
+      border: '1px solid var(--border)',
       borderRadius: '12px',
       opacity: disabled ? 0.6 : 1,
       transition: 'opacity 0.2s ease'
@@ -21,7 +21,8 @@ export const ConfigSlider = ({ label, min, max, step, value, onChange, disabled,
           fontSize: '14px', 
           fontWeight: 700, 
           color: 'var(--accent)',
-          background: 'rgba(255, 255, 255, 0.05)',
+          background: 'var(--bg)',
+          border: '1px solid var(--border)',
           padding: '2px 8px',
           borderRadius: '6px'
         }}>
@@ -48,7 +49,7 @@ export const ConfigSlider = ({ label, min, max, step, value, onChange, disabled,
       />
 
       {helpText && (
-        <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)' }}>
+        <span style={{ fontSize: '11px', color: 'var(--text)', opacity: 0.85 }}>
           {helpText}
         </span>
       )}

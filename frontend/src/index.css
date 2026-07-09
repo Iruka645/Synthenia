@@ -1,15 +1,25 @@
+@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
+  --background: #ffffff;
+  --foreground: #08060d;
   --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
+  --accent-rgb: 170 59 255;
+  --muted: #6b6375;
+  --card: #f4f3ec;
+  --border: #e5e4e7;
+
+  /* Compatibility theme mappings */
+  --text: var(--muted);
+  --text-muted: var(--muted);
+  --text-h: var(--foreground);
+  --bg: var(--background);
+  --code-bg: var(--card);
+  --accent-bg: rgba(var(--accent-rgb), 0.1);
+  --accent-border: rgba(var(--accent-rgb), 0.5);
   --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --shadow: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -30,36 +40,35 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+.dark {
+  --background: #16171d;
+  --foreground: #f3f4f6;
+  --accent: #c084fc;
+  --accent-rgb: 192 132 252;
+  --muted: #9ca3af;
+  --card: #1f2028;
+  --border: #2e303a;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+  /* Compatibility theme mappings */
+  --bg: var(--background);
+  --text: var(--muted);
+  --text-muted: var(--muted);
+  --text-h: var(--foreground);
+  --code-bg: var(--card);
+  --accent-bg: rgba(var(--accent-rgb), 0.15);
+  --accent-border: rgba(var(--accent-rgb), 0.5);
+  --social-bg: rgba(47, 48, 58, 0.5);
+  --shadow: rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
 }
 
 body {
   margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  width: 100%;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -649,6 +658,102 @@ code {
   font-size: 1.1rem;
   font-weight: 600;
 }
+
+@media (max-width: 1024px) {
+  .main-layout-container {
+    flex-direction: column;
+    height: auto;
+    min-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    padding: 12px;
+    overflow-y: auto;
+  }
+
+  .left-panel {
+    width: 100%;
+    height: auto;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+
+  .avatar-wrapper {
+    min-height: 300px;
+    max-height: 400px;
+  }
+
+  .right-panel {
+    height: 600px;
+  }
+}
+
+/* Recording Waveform Visualizer & Destructive Grouping Controls */
+.recording-status-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  height: 48px;
+  box-sizing: border-box;
+  animation: pulse-border 2s infinite ease-in-out;
+  user-select: none;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: var(--border); }
+  50% { border-color: var(--accent); }
+}
+
+.recording-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.recording-timer {
+  font-size: 13px;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.waveform-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 20px;
+}
+
+.waveform-bar {
+  width: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: wave-bounce 1s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+.waveform-bar.bar1 { height: 60%; animation-delay: 0.1s; }
+.waveform-bar.bar2 { height: 100%; animation-delay: 0.3s; }
+.waveform-bar.bar3 { height: 40%; animation-delay: 0.5s; }
+.waveform-bar.bar4 { height: 80%; animation-delay: 0.2s; }
+.waveform-bar.bar5 { height: 50%; animation-delay: 0.4s; }
+
+@keyframes wave-bounce {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1.2); }
+}
+
+/* Prevent accidental browser double click text highlighting */
+.select-none {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 
 
 

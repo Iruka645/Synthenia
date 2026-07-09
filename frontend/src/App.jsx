@@ -5,13 +5,16 @@ import GameBoard from './components/GameBoard';
 import { TTSProviderSelector } from './components/TTSProviderSelector';
 import useChat from './hooks/useChat';
 import ApiKeyGate from './components/ApiKeyGate';
+import ThemeToggle from './components/ThemeToggle';
+import { useUI } from './contexts/UIContext';
 
 const AvatarCanvas = React.lazy(() => import('./components/AvatarCanvas'));
 const ControlPanel = React.lazy(() => import('./components/ControlPanel'));
 
 function App() {
+  const { showConfirm } = useUI();
   const { 
-    messages, loading, error, send, transcribe, clear, systemReady,
+    messages, loading, error, send, transcribe, clear, systemReady, socketConnected,
     currentEmotion, volumeRef,
     gameMode, board, gameWinner, gameLoading, startGame, stopGame, playMove
   } = useChat();
@@ -29,13 +32,48 @@ function App() {
     };
   }, []);
 
+  React.useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      // Escape to exit dashboard back to chat
+      if (e.key === 'Escape') {
+        setView((prev) => {
+          if (prev === 'control-panel') {
+            return 'chat';
+          }
+          return prev;
+        });
+      }
+
+      // Cmd+K or Ctrl+K to toggle dashboard view
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setView((prev) => (prev === 'chat' ? 'control-panel' : 'chat'));
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+    };
+  }, []);
+
+  const handleClearChat = async () => {
+    const confirm = await showConfirm(
+      'ล้างประวัติการสนทนา',
+      'ต้องการล้างประวัติการสนทนาทั้งหมดในเซสชันนี้ใช่หรือไม่?'
+    );
+    if (confirm) {
+      await clear();
+    }
+  };
+
   return (
     <div className="main-layout-container">
       {/* Left Panel: Live2D Avatar and Game Board */}
       <div className="left-panel">
         {/* Avatar View */}
         <div className="avatar-wrapper">
-          <React.Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>กำลังโหลดอวตาร...</div>}>
+          <React.Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text)', fontSize: '13px' }}>กำลังโหลดอวตาร...</div>}>
             <AvatarCanvas emotion={currentEmotion} volumeRef={volumeRef} />
           </React.Suspense>
         </div>
@@ -78,21 +116,38 @@ function App() {
         <div className="right-panel">
           <header className="chat-header">
             <div className="header-info">
-              <div className="status-dot online"></div>
+              <div className={`status-dot ${
+                !socketConnected ? 'offline' : !systemReady ? 'connecting' : 'online'
+              }`} style={{
+                backgroundColor: !socketConnected ? '#ef4444' : !systemReady ? '#f59e0b' : '#10b981',
+                boxShadow: !socketConnected ? '0 0 8px #ef4444' : !systemReady ? '0 0 8px #f59e0b' : '0 0 8px #10b981',
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%'
+              }}></div>
               <div>
                 <h2>ซิน (Syn) {gameMode ? '[โหมดเกม OX]' : ''}</h2>
-                <p className="status-text">{gameMode ? 'กำลังดวล OX กับคุณ!' : 'พร้อมคุยกับคุณ'}</p>
+                <p className="status-text">
+                  {!socketConnected 
+                    ? 'ขาดการเชื่อมต่อเซิร์ฟเวอร์' 
+                    : !systemReady 
+                      ? 'กำลังเตรียมความพร้อมของระบบ...' 
+                      : gameMode 
+                        ? 'กำลังดวล OX กับคุณ!' 
+                        : 'พร้อมคุยกับคุณ'}
+                </p>
               </div>
             </div>
             
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <ThemeToggle />
               <button 
                 onClick={() => setView('control-panel')}
                 className="dashboard-toggle-button"
                 style={{
                   padding: '8px 16px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: 'var(--code-bg)',
+                  border: '1px solid var(--border)',
                   color: 'var(--text-h)',
                   borderRadius: '8px',
                   fontSize: '13px',
@@ -107,7 +162,7 @@ function App() {
                 🛠️ แดชบอร์ด
               </button>
               <button 
-                onClick={clear} 
+                onClick={handleClearChat} 
                 className="reset-button" 
                 disabled={loading || messages.length === 0}
                 title="ล้างประวัติการสนทนา"
@@ -139,7 +194,7 @@ function App() {
           {!apiKey ? (
             <ApiKeyGate onSuccess={setApiKey} />
           ) : (
-            <React.Suspense fallback={<div style={{ color: 'rgba(255,255,255,0.4)', padding: '20px', textAlign: 'center' }}>กำลังโหลดแดชบอร์ด...</div>}>
+            <React.Suspense fallback={<div style={{ color: 'var(--text)', padding: '20px', textAlign: 'center' }}>กำลังโหลดแดชบอร์ด...</div>}>
               <ControlPanel 
                 apiKey={apiKey} 
                 onLogout={() => {
@@ -147,6 +202,8 @@ function App() {
                   setApiKey('');
                 }}
                 onClose={() => setView('chat')}
+                socketConnected={socketConnected}
+                systemReady={systemReady}
               />
             </React.Suspense>
           )}

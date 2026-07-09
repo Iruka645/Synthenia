@@ -14,7 +14,6 @@ export class AudioAnalyser {
       }
       if (this.audioContext.state === 'suspended') {
         this.audioContext.resume();
-        console.log('[AudioAnalyser] AudioContext resumed successfully.');
       }
     } catch (e) {
       console.warn('[AudioAnalyser] Failed to initialize AudioContext:', e);

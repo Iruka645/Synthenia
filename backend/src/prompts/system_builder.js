@@ -1,5 +1,8 @@
 const fs = require("node:fs");
 const path = require("node:path");
+require('dotenv').config()
+
+const EXAMPLE_ALLOW = process.env.EXAMPLE_ENABLE
 
 const PROMPT_SECTION_ORDER = [
   "identity",
@@ -7,8 +10,11 @@ const PROMPT_SECTION_ORDER = [
   "speech_style",
   "json_schema",
   "memory_context",
-  "examples",
 ];
+
+if(EXAMPLE_ALLOW === "true") {
+  PROMPT_SECTION_ORDER.push("examples");
+}
 
 const PROMPTS_DIR = __dirname;
 

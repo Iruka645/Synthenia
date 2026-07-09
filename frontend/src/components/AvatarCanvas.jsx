@@ -35,8 +35,6 @@ export const AvatarCanvas = ({ emotion, volumeRef }) => {
   useEffect(() => {
     if (!model) return;
 
-    console.log('[Live2D] Triggering emotion motion for:', emotion);
-
     const playMotionSafe = (groupName) => {
       const definitions = model.internalModel?.motionManager?.definitions;
       if (!definitions) return;
@@ -198,8 +196,6 @@ export const AvatarCanvas = ({ emotion, volumeRef }) => {
           };
           tickerRef.current = syncMouth;
           app.ticker.add(syncMouth);
-
-          console.log('[Live2D] Model loaded successfully');
         })
         .catch((error) => {
           if (!disposed) {
@@ -231,7 +227,6 @@ export const AvatarCanvas = ({ emotion, volumeRef }) => {
         container.removeChild(app.view);
       }
       app.destroy(true, { children: true, texture: true, baseTexture: true });
-      console.log('[Live2D] Cleaned up PIXI application');
     };
   }, []);
 
@@ -247,9 +242,9 @@ export const AvatarCanvas = ({ emotion, volumeRef }) => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '380px',
-        background: 'rgba(30, 30, 45, 0.4)',
+        background: 'var(--card)',
         borderRadius: '16px',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        border: '1px solid var(--border)',
         backdropFilter: 'blur(8px)',
         overflow: 'hidden'
       }}
@@ -258,7 +253,7 @@ export const AvatarCanvas = ({ emotion, volumeRef }) => {
         <div
           style={{
             position: 'absolute',
-            color: 'rgba(255, 255, 255, 0.6)',
+            color: 'var(--text)',
             fontSize: '14px',
             fontFamily: 'Inter, sans-serif'
           }}

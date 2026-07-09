@@ -32,7 +32,7 @@ class EmbeddingService {
       const response = await ollamaClient.embed({
         model: this.modelName,
         input: text.trim(),
-        keep_alive: '5m',
+        keep_alive: '30m',
       });
 
       if (!response || !response.embeddings || response.embeddings.length === 0) {

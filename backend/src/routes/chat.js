@@ -107,7 +107,6 @@ router.post("/transcribe", upload.single('audio'), async (req, res) => {
 //POST reset conversation
 router.post('/chat/reset', async (req, res) => {
   ollamaService.resetHistory();
-  llmManager.resetSiliconFlowCounter();
 
   // End current session and trigger memory consolidation asynchronously
   try {

@@ -19,9 +19,8 @@ router.get('/', async (req, res) => {
       'voiceConversion.pitch': dbConfig['voiceConversion.pitch'] !== undefined ? dbConfig['voiceConversion.pitch'] : (process.env.VOICE_CONVERSION_PITCH ? parseInt(process.env.VOICE_CONVERSION_PITCH, 10) : 0),
       'voiceConversion.indexRate': dbConfig['voiceConversion.indexRate'] !== undefined ? dbConfig['voiceConversion.indexRate'] : (process.env.VOICE_CONVERSION_INDEX_RATE ? parseFloat(process.env.VOICE_CONVERSION_INDEX_RATE) : 0.4),
       'llm.modelParams': dbConfig['llm.modelParams'] !== undefined ? dbConfig['llm.modelParams'] : { temperature: 0.8, top_p: 0.9, num_predict: 300 },
-      'llm.modelByProvider': dbConfig['llm.modelByProvider'] !== undefined ? dbConfig['llm.modelByProvider'] : { ollama: process.env.AI_MODEL || 'gemma4:12b', siliconflow: process.env.SILICONFLOW_MODEL || 'openai/gpt-oss-20b' },
+      'llm.modelByProvider': dbConfig['llm.modelByProvider'] !== undefined ? dbConfig['llm.modelByProvider'] : { ollama: process.env.AI_MODEL || 'gemma4:12b' },
       'memory.autoConsolidation': dbConfig['memory.autoConsolidation'] !== undefined ? dbConfig['memory.autoConsolidation'] : true,
-      'siliconFlowRequestCount': llmManager.siliconFlowRequestCount
     };
     res.json(responseConfig);
   } catch (error) {

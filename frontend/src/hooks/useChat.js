@@ -1,8 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { sendMessage, resetChat, transcribeAudio, sendGameMove, socket, getChatStatus } from '../services/api';
 import AudioAnalyser from '../utils/audioAnalyser';
+import { useUI } from '../contexts/UIContext';
 
 export const useChat = () => {
+  const { showToast } = useUI();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -10,6 +12,9 @@ export const useChat = () => {
   // Live2D State
   const [currentEmotion, setCurrentEmotion] = useState('neutral');
   const volumeRef = useRef(0);
+
+  // Socket Connection State
+  const [socketConnected, setSocketConnected] = useState(socket.connected);
 
   // Game Mode State
   const [gameMode, setGameMode] = useState(false);
@@ -97,15 +102,31 @@ export const useChat = () => {
 
   // Listen to WebSocket 'tts:done' and 'tts:error' events
   useEffect(() => {
+    setSocketConnected(socket.connected);
     if (!socket.connected) {
       socket.connect();
     }
+
+    const handleConnect = () => {
+      setSocketConnected(true);
+    };
+
+    const handleDisconnect = () => {
+      setSocketConnected(false);
+    };
+
+    const handleConnectError = (err) => {
+      console.error('[WebSocket] Socket connection error:', err.message);
+      setSocketConnected(false);
+    };
 
     const handleTTSDone = ({ ttsJobId, audioUrl }) => {
       const callback = pendingTTSRef.current.get(ttsJobId);
       if (callback) {
         callback(audioUrl);
         pendingTTSRef.current.delete(ttsJobId);
+      } else {
+        console.warn('[WebSocket] Received tts:done but no callback was registered for job:', ttsJobId);
       }
     };
 
@@ -114,10 +135,16 @@ export const useChat = () => {
       pendingTTSRef.current.delete(ttsJobId);
     };
 
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('connect_error', handleConnectError);
     socket.on('tts:done', handleTTSDone);
     socket.on('tts:error', handleTTSError);
 
     return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('connect_error', handleConnectError);
       socket.off('tts:done', handleTTSDone);
       socket.off('tts:error', handleTTSError);
     };
@@ -132,10 +159,8 @@ export const useChat = () => {
       audio.crossOrigin = "anonymous";
       audio.src = audioUrl;
 
-      audio.addEventListener('play', () => {
-        audioAnalyserRef.current.analyse(audio, (vol) => {
-          volumeRef.current = vol;
-        });
+      audioAnalyserRef.current.analyse(audio, (vol) => {
+        volumeRef.current = vol;
       });
 
       audio.addEventListener('ended', () => {
@@ -160,7 +185,16 @@ export const useChat = () => {
   // Helper to wait for audio push via WebSocket and play it
   const waitForAudioAndPlay = useCallback((ttsJobId) => {
     const WS_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4040';
+    
+    // Set 8-second slow response reminder
+    const slowWarningTimeout = setTimeout(() => {
+      if (pendingTTSRef.current.has(ttsJobId)) {
+        showToast('การสร้างประโยคเสียงพูดค่อนข้างช้ากรุณารอสักครู่นะคะ...', 'info');
+      }
+    }, 8000);
+
     pendingTTSRef.current.set(ttsJobId, (audioUrl) => {
+      clearTimeout(slowWarningTimeout);
       const fullUrl = `${WS_URL}${audioUrl}`;
       playAudioWithAnalysis(fullUrl);
     });
@@ -168,11 +202,13 @@ export const useChat = () => {
     // Cleanup timeout: remove after 120s if no event received
     setTimeout(() => {
       if (pendingTTSRef.current.has(ttsJobId)) {
+        clearTimeout(slowWarningTimeout);
         console.warn('[TTS WebSocket] Timed out waiting for audio');
         pendingTTSRef.current.delete(ttsJobId);
+        showToast('การส่งผ่านข้อมูลสังเคราะห์เสียงล่าช้าเกินเวลา', 'error');
       }
     }, 120_000);
-  }, [playAudioWithAnalysis]);
+  }, [playAudioWithAnalysis, showToast]);
 
   const send = useCallback(async (text) => {
     if (!text || !text.trim()) return;
@@ -257,7 +293,7 @@ export const useChat = () => {
       if (controller.signal.aborted || err.name === 'CanceledError') return '';
       if (reqId !== requestIdRef.current) return '';
       console.error('Error transcribing audio:', err);
-      setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการแปลงเสียงเป็นข้อความ');
+      setError(err.message || 'เกิดข้อผิดพลาดในการแปลงเสียงเป็นข้อความ');
       return '';
     } finally {
       if (abortControllerRef.current === controller) {
@@ -279,10 +315,19 @@ export const useChat = () => {
     setError(null);
     try {
       await resetChat();
-      setMessages([]);
-      setBoard(Array(9).fill(null));
-      setGameWinner(null);
-      setGameMode(false);
+      if (gameMode) {
+        const infoMsg = {
+          id: Date.now() + '-game-info-reset',
+          text: '[ระบบ] รีเซ็ตประวัติสนทนาแล้ว แต่โหมดเกม OX ยังดำเนินต่อได้',
+          sender: 'system',
+          timestamp: new Date()
+        };
+        setMessages([infoMsg]);
+      } else {
+        setMessages([]);
+        setBoard(Array(9).fill(null));
+        setGameWinner(null);
+      }
       setCurrentEmotion('neutral');
       volumeRef.current = 0;
       if (audioAnalyserRef.current) {
@@ -294,7 +339,7 @@ export const useChat = () => {
     } finally {
       setLoading(false);
     }
-  }, [cancelInFlight]);
+  }, [cancelInFlight, gameMode]);
 
   // Game Mode Methods
   const startGame = useCallback(() => {
@@ -382,7 +427,7 @@ export const useChat = () => {
       if (controller.signal.aborted || err.name === 'CanceledError') return;
       if (reqId !== requestIdRef.current) return;
       console.error('Error playing game move:', err);
-      setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการเล่นเกม');
+      setError(err.message || 'เกิดข้อผิดพลาดในการเล่นเกม');
       setCurrentEmotion('annoyed');
     } finally {
       if (abortControllerRef.current === controller) {
@@ -402,6 +447,7 @@ export const useChat = () => {
     transcribe,
     clear,
     systemReady,
+    socketConnected,
     // Live2D parameters
     currentEmotion,
     volumeRef,

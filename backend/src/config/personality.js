@@ -9,9 +9,9 @@ const PERSONALITY = buildSystemPrompt();
 const MODEL_CONFIG = {
   model: AI_MODEL,
   options: {
-    temperature: 0.8,
+    temperature: 0.7,
     top_p: 0.9,
-    num_predict: 300,
+    num_predict: 150,
   },
 };
 

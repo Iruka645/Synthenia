@@ -7,8 +7,8 @@ export const ConfigToggle = ({ label, checked, onChange, disabled }) => {
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: '12px 16px',
-      background: 'rgba(255, 255, 255, 0.03)',
-      border: '1px solid rgba(255, 255, 255, 0.05)',
+      background: 'var(--card)',
+      border: '1px solid var(--border)',
       borderRadius: '12px',
       gap: '12px',
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -36,7 +36,7 @@ export const ConfigToggle = ({ label, checked, onChange, disabled }) => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: checked ? 'var(--accent)' : 'rgba(255, 255, 255, 0.1)',
+          backgroundColor: checked ? 'var(--accent)' : 'var(--border)',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           borderRadius: '34px',
           boxShadow: checked ? '0 0 10px rgba(var(--accent-rgb), 0.5)' : 'none'

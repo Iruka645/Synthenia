@@ -10,13 +10,7 @@ let currentProviderInstance = createLLMProvider(currentProviderName);
 class LLMManager {
   constructor() {
     this.fallbackEvents = [];
-    this.siliconFlowRequestCount = 0;
     this._lastSwitchTime = 0;
-  }
-
-  resetSiliconFlowCounter() {
-    this.siliconFlowRequestCount = 0;
-    console.log('[LLM Manager] SiliconFlow request counter reset.');
   }
 
   // เรียกครั้งเดียวตอน server boot เพื่อ restore ค่าที่เคย switch ไว้จาก DB
@@ -57,42 +51,10 @@ class LLMManager {
       console.log(`[LLM Manager] Generating chat using provider: ${currentProviderName} (model: ${model})`);
       const response = await currentProviderInstance.chat(messages, activeOptions);
 
-      if (currentProviderName === 'siliconflow') {
-        this.siliconFlowRequestCount++;
-      }
-
       response.usedFallback = false;
       return response;
     } catch (error) {
       console.error(`[LLM Manager] Chat failed using provider ${currentProviderName}:`, error.message);
-
-      if (currentProviderName !== 'ollama') {
-        console.warn('[LLM Manager] Attempting fallback to Ollama...');
-        
-        // Log fallback event
-        this.fallbackEvents.push({
-          timestamp: new Date().toISOString(),
-          fromProvider: currentProviderName,
-          toProvider: 'ollama',
-          error: error.message,
-          model: model
-        });
-        if (this.fallbackEvents.length > 10) {
-          this.fallbackEvents.shift();
-        }
-
-        try {
-          const fallbackProvider = createLLMProvider('ollama');
-          const fallbackModel = savedModelByProvider.ollama || llmConfig.modelByProvider.ollama;
-          const fallbackOptions = { ...activeOptions, model: fallbackModel };
-          
-          const response = await fallbackProvider.chat(messages, fallbackOptions);
-          response.usedFallback = true;
-          return response;
-        } catch (fallbackError) {
-          console.error('[LLM Manager] Fallback to Ollama also failed:', fallbackError.message);
-        }
-      }
       
       // If we reach here, all providers failed. Return a charming, safe default response.
       return {

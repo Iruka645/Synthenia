@@ -7,7 +7,7 @@ const VoiceConversionTab = lazy(() => import('./tabs/VoiceConversionTab'));
 const MemoryTab = lazy(() => import('./tabs/MemoryTab'));
 const SystemStatusTab = lazy(() => import('./tabs/SystemStatusTab'));
 
-export const ControlPanel = ({ apiKey, onLogout, onClose }) => {
+export const ControlPanel = ({ apiKey, onLogout, onClose, socketConnected, systemReady }) => {
   const [config, setConfig] = useState(null);
   const [activeTab, setActiveTab] = useState('llm');
   const [loading, setLoading] = useState(false);
@@ -28,8 +28,43 @@ export const ControlPanel = ({ apiKey, onLogout, onClose }) => {
     fetchConfig();
   }, []);
 
+  const handleTabKeyDown = (e, index) => {
+    let nextIndex = index;
+    if (e.key === 'ArrowRight') {
+      nextIndex = (index + 1) % tabs.length;
+    } else if (e.key === 'ArrowLeft') {
+      nextIndex = (index - 1 + tabs.length) % tabs.length;
+    } else {
+      return;
+    }
+    e.preventDefault();
+    setActiveTab(tabs[nextIndex].id);
+    
+    // Focus the next tab button
+    setTimeout(() => {
+      document.getElementById(`tab-${tabs[nextIndex].id}`)?.focus();
+    }, 0);
+  };
+
+const TabSkeleton = () => (
+  <div className="animate-pulse flex flex-col gap-5 w-full">
+    <div className="flex flex-col gap-2">
+      <div className="h-6 w-48 bg-zinc-200 dark:bg-zinc-800 rounded" />
+      <div className="h-4 w-80 bg-zinc-200 dark:bg-zinc-800 rounded opacity-60" />
+    </div>
+    
+    <div className="flex flex-col gap-4 mt-3">
+      <div className="h-14 w-full bg-zinc-200 dark:bg-zinc-800 rounded-xl opacity-40" />
+      <div className="h-20 w-full bg-zinc-200 dark:bg-zinc-800 rounded-xl opacity-40" />
+      <div className="h-14 w-full bg-zinc-200 dark:bg-zinc-800 rounded-xl opacity-40" />
+    </div>
+
+    <div className="h-12 w-full bg-zinc-200 dark:bg-zinc-800 rounded-xl opacity-30 mt-4" />
+  </div>
+);
+
   const renderActiveTab = () => {
-    if (!config) return <div style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '40px' }}>กำลังโหลดระบบข้อมูลตั้งค่า...</div>;
+    if (!config) return <TabSkeleton />;
 
     switch (activeTab) {
       case 'llm':
@@ -41,7 +76,13 @@ export const ControlPanel = ({ apiKey, onLogout, onClose }) => {
       case 'memory':
         return <MemoryTab config={config} onConfigChange={fetchConfig} apiKey={apiKey} />;
       case 'status':
-        return <SystemStatusTab config={config} />;
+        return (
+          <SystemStatusTab 
+            config={config} 
+            socketConnected={socketConnected} 
+            systemReady={systemReady} 
+          />
+        );
       default:
         return null;
     }
@@ -56,63 +97,28 @@ export const ControlPanel = ({ apiKey, onLogout, onClose }) => {
   ];
 
   return (
-    <div style={{
-      width: '100%',
-      flex: '1 0 auto',
-      color: 'var(--text-h)',
-      fontFamily: 'Inter, sans-serif',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '24px',
-      padding: '4px'
-    }}>
+    <div className="w-full flex-auto text-[var(--text-h)] font-sans flex flex-col gap-6 p-1">
       {/* Header Panel */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingBottom: '16px',
-        borderBottom: '1px solid rgba(255,255,255,0.08)'
-      }}>
+      <div className="flex justify-between items-center pb-4 border-b border-[var(--border)]">
         <div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-h)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h2 className="text-2xl font-extrabold text-[var(--text-h)] flex items-center gap-2">
             🛠️ Synthenia Control Panel
           </h2>
-          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
+          <p className="text-xs text-[var(--text)] opacity-80 mt-1">
             แดชบอร์ดตั้งค่าการทำงานและวิเคราะห์ข้อมูลความทรงจำของ AI VTuber (Syn)
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="flex gap-2.5">
           <button
             onClick={onLogout}
-            style={{
-              padding: '8px 12px',
-              background: 'rgba(255, 107, 107, 0.1)',
-              border: '1px solid rgba(255, 107, 107, 0.2)',
-              borderRadius: '8px',
-              color: '#ff8787',
-              fontSize: '12px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              transition: 'background 0.2s'
-            }}
+            className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs cursor-pointer font-semibold transition-all hover:bg-red-500/20 select-none"
           >
             🔒 ออกจากระบบ
           </button>
           <button
             onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '8px',
-              color: 'var(--text-h)',
-              fontSize: '12px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              transition: 'background 0.2s'
-            }}
+            className="px-4 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-xs cursor-pointer font-semibold transition-all hover:bg-[var(--card)] select-none"
           >
             💬 กลับหน้าแชท
           </button>
@@ -120,32 +126,25 @@ export const ControlPanel = ({ apiKey, onLogout, onClose }) => {
       </div>
 
       {/* Tabs navigation */}
-      <div style={{
-        display: 'flex',
-        borderBottom: '2px solid rgba(255, 255, 255, 0.05)',
-        gap: '4px',
-        overflowX: 'auto',
-        paddingBottom: '2px'
-      }}>
-        {tabs.map((tab) => (
+      <div 
+        role="tablist"
+        aria-label="Configuration Options"
+        className="flex border-b-2 border-[var(--border)] gap-1 overflow-x-auto pb-0.5 select-none"
+      >
+        {tabs.map((tab, idx) => (
           <button
             key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`tabpanel-${tab.id}`}
+            id={`tab-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: '12px 18px',
-              background: activeTab === tab.id ? 'rgba(255,255,255,0.04)' : 'none',
-              border: 'none',
-              borderBottom: activeTab === tab.id ? '3px solid var(--accent)' : '3px solid transparent',
-              color: activeTab === tab.id ? 'var(--text-h)' : 'rgba(255,255,255,0.5)',
-              fontWeight: activeTab === tab.id ? 700 : 500,
-              cursor: 'pointer',
-              fontSize: '13px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease',
-              whiteSpace: 'nowrap'
-            }}
+            onKeyDown={(e) => handleTabKeyDown(e, idx)}
+            className={`px-4.5 py-3 border-b-3 transition-all duration-200 ease-in-out cursor-pointer text-sm flex items-center gap-1.5 whitespace-nowrap select-none ${
+              activeTab === tab.id
+                ? 'bg-[var(--card)] border-[var(--accent)] text-[var(--text-h)] font-bold'
+                : 'bg-transparent border-transparent text-[var(--text)] opacity-70 font-medium hover:opacity-100'
+            }`}
           >
             <span>{tab.icon}</span>
             <span>{tab.label}</span>
@@ -154,15 +153,13 @@ export const ControlPanel = ({ apiKey, onLogout, onClose }) => {
       </div>
 
       {/* Tab Contents wrapper */}
-      <div style={{
-        background: 'rgba(30, 30, 45, 0.25)',
-        border: '1px solid rgba(255, 255, 255, 0.04)',
-        borderRadius: '20px',
-        padding: '24px',
-        minHeight: '400px',
-        backdropFilter: 'blur(8px)'
-      }}>
-        <Suspense fallback={<div style={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '40px' }}>กำลังโหลดแท็บ...</div>}>
+      <div 
+        role="tabpanel"
+        id={`tabpanel-${activeTab}`}
+        aria-labelledby={`tab-${activeTab}`}
+        className="bg-[var(--card)] border border-[var(--border)] rounded-[20px] p-6 min-h-[400px]"
+      >
+        <Suspense fallback={<div className="text-[var(--text)] opacity-60 text-center py-10 animate-pulse">กำลังโหลดแท็บ...</div>}>
           {renderActiveTab()}
         </Suspense>
       </div>

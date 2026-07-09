@@ -24,6 +24,7 @@ class OllamaProvider extends BaseLLMProvider {
     const response = await this.client.chat({
       model,
       messages,
+      keep_alive: '30m',
       options: { temperature, top_p, num_predict },
       stream: false,
       format: {

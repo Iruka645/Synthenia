@@ -15,7 +15,6 @@ if (process.env.LLM_PROVIDER && !availableProviders.includes(configuredProvider)
 
 const modelByProvider = {
   ollama: process.env.AI_MODEL,
-  siliconflow: process.env.SILICONFLOW_MODEL || 'openai/gpt-oss-20b',
 };
 
 module.exports = {

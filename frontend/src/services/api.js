@@ -6,7 +6,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 60000,
+  timeout: 600000,
 });
 
 // Request interceptor to automatically inject x-api-key from sessionStorage if not manually provided
@@ -50,7 +50,7 @@ const getWsUrl = () => {
   if (viteApiUrl) {
     return viteApiUrl.replace('/api', '');
   }
-  return window.location.origin;
+  return 'http://localhost:4040';
 };
 
 const WS_URL = getWsUrl();
@@ -138,11 +138,6 @@ export const getOllamaHealth = async () => {
   return response.data;
 };
 
-export const getSiliconFlowHealth = async () => {
-  const response = await api.get('/health/siliconflow');
-  return response.data;
-};
-
 export const getMemoryStats = async () => {
   const response = await api.get('/memory/stats');
   return response.data;
@@ -156,11 +151,6 @@ export const testLLMProvider = async (provider) => {
 // Mutating APIs (require auth header)
 export const updateLLMConfig = async (data) => {
   const response = await api.patch('/config/llm', data);
-  return response.data;
-};
-
-export const updateTTSConfig = async (data) => {
-  const response = await api.patch('/config/tts', data);
   return response.data;
 };
 

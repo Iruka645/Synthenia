@@ -1,9 +1,7 @@
 const OllamaProvider = require('./providers/ollamaProvider');
-const SiliconFlowProvider = require('./providers/siliconflowProvider');
 
 const providers = {
   ollama: OllamaProvider,
-  siliconflow: SiliconFlowProvider,
 };
 
 const singletons = {};

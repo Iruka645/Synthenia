@@ -4,9 +4,6 @@ const { query } = require('../db/pool');
 const consolidationWorker = require('../services/memory/consolidationWorker');
 const decayWorker = require('../services/memory/decayWorker');
 const apiKeyAuth = require('../middleware/apiKeyAuth');
-const GeminiTTSProvider = require('../services/tts/providers/geminittsProvider');
-
-const geminiProviderSingleton = new GeminiTTSProvider();
 
 // GET /api/memory/stats
 router.get('/stats', async (req, res) => {
@@ -25,16 +22,13 @@ router.get('/stats', async (req, res) => {
       query(`SELECT COUNT(*)::int AS count FROM messages`)
     ]);
     
-    // Get Gemini TTS Quota Status
-    const ttsQuota = await geminiProviderSingleton.getQuotaStatus();
-
     res.json({
       factsActive: factsActiveRes.rows[0].count,
       factsTotal: factsTotalRes.rows[0].count,
       sessionsUnconsolidated: sessionsUnconsolidatedRes.rows[0].count,
       sessionsTotal: sessionsTotalRes.rows[0].count,
       messagesTotal: messagesTotalRes.rows[0].count,
-      ttsQuota
+      ttsQuota: null
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { updateVoiceConversionConfig, previewTTS, resetConfigKey, getConfig } from '../../services/api';
+import { updateVoiceConversionConfig, previewTTS, resetConfigKey } from '../../services/api';
 import ConfigSlider from '../ui/ConfigSlider';
 import ConfigToggle from '../ui/ConfigToggle';
+import { useUI } from '../../contexts/UIContext';
 
-export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
+export const VoiceConversionTab = ({ config, onConfigChange }) => {
+  const { showConfirm } = useUI();
   const [enabled, setEnabled] = useState(config['voiceConversion.enabled'] || false);
   const [pitch, setPitch] = useState(config['voiceConversion.pitch'] || 0);
   const [indexRate, setIndexRate] = useState(config['voiceConversion.indexRate'] || 0.4);
@@ -38,14 +40,14 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
     };
 
     try {
-      await updateVoiceConversionConfig(data, apiKey);
+      await updateVoiceConversionConfig(data);
       setSuccessMsg('บันทึกการตั้งค่า Voice Conversion สำเร็จ');
       setIsDirty(false); // Clear dirty flag on success
       onConfigChange();
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err) {
       console.error('[VoiceConversionTab] Save failed:', err);
-      setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการบันทึกค่า');
+      setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกค่า');
     } finally {
       setSaving(false);
     }
@@ -57,19 +59,22 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
   };
 
   const handleReset = async (key) => {
-    const confirmReset = window.confirm(`ต้องการรีเซ็ตคีย์ "${key}" กลับเป็นค่าเริ่มต้นจากระบบ (.env) หรือไม่?`);
+    const confirmReset = await showConfirm(
+      'รีเซ็ตการตั้งค่า',
+      `ต้องการรีเซ็ตคีย์ "${key}" กลับเป็นค่าเริ่มต้นจากระบบ (.env) หรือไม่?`
+    );
     if (!confirmReset) return;
 
     setSaving(true);
     setError(null);
     try {
-      await resetConfigKey(key, apiKey);
+      await resetConfigKey(key);
       setSuccessMsg('รีเซ็ตการตั้งค่าเรียบร้อยแล้ว');
       setIsDirty(false); // Clear dirty flag on success
       onConfigChange();
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err) {
-      setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการรีเซ็ตค่า');
+      setError(err.message || 'เกิดข้อผิดพลาดในการรีเซ็ตค่า');
     } finally {
       setSaving(false);
     }
@@ -113,7 +118,7 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div>
         <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600 }}>🎙️ การแปลงโมเดลเสียง (Voice Conversion)</h3>
-        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
+        <p style={{ fontSize: '12px', color: 'var(--text)', opacity: 0.8, marginTop: '4px' }}>
           ปรับแต่งเสียงพูดของ Syn ผ่าน RVC (Retrieval-based Voice Conversion) ให้เป็นน้ำเสียงเด็กผู้หญิงน่ารักอย่างสมบูรณ์แบบ
         </p>
       </div>
@@ -141,10 +146,10 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
       {/* Pitch Slider */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>ค่า Pitch Shift คีย์เสียง</span>
+          <span style={{ fontSize: '11px', color: 'var(--text)', opacity: 0.8 }}>ค่า Pitch Shift คีย์เสียง</span>
           <button 
             onClick={() => handleReset('voiceConversion.pitch')}
-            style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '11px', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
           >
             🔄 รีเซ็ต Pitch
           </button>
@@ -164,10 +169,10 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
       {/* Index Rate Slider */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>ค่า Index Rate ความเสมือน</span>
+          <span style={{ fontSize: '11px', color: 'var(--text)', opacity: 0.8 }}>ค่า Index Rate ความเสมือน</span>
           <button 
             onClick={() => handleReset('voiceConversion.indexRate')}
-            style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '11px', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
           >
             🔄 รีเซ็ต Index
           </button>
@@ -205,8 +210,8 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
 
       {/* Voice conversion Preview tester */}
       <div style={{
-        background: 'rgba(0, 0, 0, 0.15)',
-        border: '1px solid rgba(255, 255, 255, 0.05)',
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
         borderRadius: '16px',
         padding: '16px',
         display: 'flex',
@@ -214,14 +219,14 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
         gap: '12px',
         marginTop: '10px'
       }}>
-        <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>🎙️ ทดลองฟังเสียงแปลงสด (Voice Conversion Preview)</span>
+        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-h)', opacity: 0.95 }}>🎙️ ทดลองฟังเสียงแปลงสด (Voice Conversion Preview)</span>
         <textarea
           value={testText}
           onChange={(e) => setTestText(e.target.value)}
           rows={2}
           style={{
-            background: 'rgba(10,10,15,0.5)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'var(--bg)',
+            border: '1px solid var(--border)',
             borderRadius: '8px',
             color: 'var(--text-h)',
             padding: '10px',
@@ -240,7 +245,7 @@ export const VoiceConversionTab = ({ config, onConfigChange, apiKey }) => {
           disabled={playing || !testText.trim()}
           style={{
             padding: '10px 14px',
-            background: playing ? 'rgba(255,255,255,0.1)' : 'var(--accent)',
+            background: playing ? 'var(--code-bg)' : 'var(--accent)',
             color: '#fff',
             border: 'none',
             borderRadius: '8px',

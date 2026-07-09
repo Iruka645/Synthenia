@@ -9,14 +9,15 @@ export const GameBoard = ({ board, onCellClick, loading, winner, onReset }) => {
         flexDirection: 'column',
         alignItems: 'center',
         padding: '20px',
-        background: 'rgba(20, 20, 30, 0.6)',
+        background: 'var(--card)',
         borderRadius: '16px',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
+        border: '1px solid var(--border)',
         backdropFilter: 'blur(10px)',
         width: '100%',
         maxWidth: '320px',
         margin: '0 auto',
-        fontFamily: 'Inter, sans-serif'
+        fontFamily: 'Inter, sans-serif',
+        boxShadow: 'var(--shadow)'
       }}
     >
       <div 
@@ -28,24 +29,25 @@ export const GameBoard = ({ board, onCellClick, loading, winner, onReset }) => {
           marginBottom: '15px'
         }}
       >
-        <span style={{ color: '#fff', fontSize: '16px', fontWeight: 'bold' }}>เล่นเกม OX กับซิน</span>
+        <span style={{ color: 'var(--text-h)', fontSize: '16px', fontWeight: 'bold' }}>เล่นเกม OX กับซิน</span>
         <button
           onClick={onReset}
           style={{
             padding: '5px 10px',
-            background: 'rgba(255, 75, 75, 0.2)',
-            border: '1px solid rgba(255, 75, 75, 0.5)',
+            background: 'rgba(255, 75, 75, 0.15)',
+            border: '1px solid rgba(255, 75, 75, 0.3)',
             color: '#ff4b4b',
             borderRadius: '8px',
             cursor: 'pointer',
             fontSize: '12px',
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
+            fontWeight: 600
           }}
           onMouseOver={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 75, 75, 0.4)';
+            e.currentTarget.style.background = 'rgba(255, 75, 75, 0.3)';
           }}
           onMouseOut={(e) => {
-            e.currentTarget.style.background = 'rgba(255, 75, 75, 0.2)';
+            e.currentTarget.style.background = 'rgba(255, 75, 75, 0.15)';
           }}
         >
           เริ่มใหม่
@@ -73,13 +75,13 @@ export const GameBoard = ({ board, onCellClick, loading, winner, onReset }) => {
                 ? 'rgba(0, 168, 255, 0.1)' 
                 : cell === 'O' 
                   ? 'rgba(255, 0, 128, 0.1)' 
-                  : 'rgba(255, 255, 255, 0.05)',
+                  : 'var(--bg)',
               border: cell === 'X'
                 ? '1px solid rgba(0, 168, 255, 0.4)'
                 : cell === 'O'
                   ? '1px solid rgba(255, 0, 128, 0.4)'
-                  : '1px solid rgba(255, 255, 255, 0.1)',
-              color: cell === 'X' ? '#00a8ff' : cell === 'O' ? '#ff0080' : '#fff',
+                  : '1px solid var(--border)',
+              color: cell === 'X' ? '#00a8ff' : cell === 'O' ? '#ff0080' : 'var(--text-h)',
               fontSize: '28px',
               fontWeight: 'bold',
               borderRadius: '12px',
@@ -88,18 +90,18 @@ export const GameBoard = ({ board, onCellClick, loading, winner, onReset }) => {
               justifyContent: 'center',
               alignItems: 'center',
               transition: 'all 0.2s',
-              boxShadow: cell ? '0 0 10px rgba(0,0,0,0.2)' : 'none'
+              boxShadow: cell ? '0 0 10px rgba(0,0,0,0.1)' : 'none'
             }}
             onMouseOver={(e) => {
               if (cell === null && !loading && !winner) {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                e.currentTarget.style.background = 'var(--code-bg)';
+                e.currentTarget.style.borderColor = 'var(--accent)';
               }
             }}
             onMouseOut={(e) => {
               if (cell === null && !loading && !winner) {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.background = 'var(--bg)';
+                e.currentTarget.style.borderColor = 'var(--border)';
               }
             }}
           >
@@ -114,20 +116,21 @@ export const GameBoard = ({ board, onCellClick, loading, winner, onReset }) => {
           width: '100%',
           textAlign: 'center',
           fontSize: '13px',
-          color: 'rgba(255,255,255,0.7)',
+          color: 'var(--text)',
           padding: '8px',
-          background: 'rgba(0,0,0,0.2)',
+          background: 'var(--bg)',
+          border: '1px solid var(--border)',
           borderRadius: '8px'
         }}
       >
         {loading ? (
-          <span style={{ color: '#ff0080' }}>ซินกำลังคิดการเดิน...</span>
+          <span style={{ color: '#ff0080', fontWeight: '500' }}>ซินกำลังคิดการเดิน...</span>
         ) : winner === 'X' ? (
           <span style={{ color: '#00a8ff', fontWeight: 'bold' }}>ยินดีด้วย! คุณชนะซินแล้ว!</span>
         ) : winner === 'O' ? (
           <span style={{ color: '#ff0080', fontWeight: 'bold' }}>ฮ่าๆ ซินชนะคุณแล้ว!</span>
         ) : winner === 'draw' ? (
-          <span style={{ color: '#aaa' }}>เสมอกัน! ฝีมือพอๆ กันเลย</span>
+          <span style={{ color: 'var(--text-h)', fontWeight: 'bold' }}>เสมอกัน! ฝีมือพอๆ กันเลย</span>
         ) : (
           <span>ตาคุณแล้ว (คุณคือ X, ซินคือ O)</span>
         )}

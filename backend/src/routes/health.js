@@ -21,27 +21,4 @@ router.get('/ollama', async (req, res) => {
   }
 });
 
-// GET /api/health/siliconflow
-router.get('/siliconflow', async (req, res) => {
-  const key = process.env.SILICONFLOW_API_KEY;
-  if (!key) {
-    return res.json({ status: 'error', message: 'ไม่ได้ตั้งค่า SILICONFLOW_API_KEY ใน .env' });
-  }
-
-  try {
-    const response = await fetch('https://api.siliconflow.cn/v1/models', {
-      headers: { 'Authorization': `Bearer ${key}` },
-      signal: AbortSignal.timeout(5000)
-    });
-    if (response.ok) {
-      return res.json({ status: 'ok', message: 'เชื่อมต่อ SiliconFlow สำเร็จและ API key ถูกต้อง' });
-    } else {
-      const text = await response.text();
-      return res.json({ status: 'error', message: `SiliconFlow API error: ${response.status} - ${text}` });
-    }
-  } catch (err) {
-    return res.json({ status: 'error', message: `ไม่สามารถเชื่อมต่อ SiliconFlow ได้: ${err.message}` });
-  }
-});
-
 module.exports = router;

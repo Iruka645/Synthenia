@@ -20,12 +20,12 @@ export const ApiKeyGate = ({ onSuccess }) => {
       onSuccess(apiKey.trim());
     } catch (err) {
       console.error('[ApiKeyGate] Verification failed:', err);
-      if (err.response && err.response.status === 401) {
+      if (err.status === 401) {
         setError('API Key ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
-      } else if (err.response && err.response.status === 503) {
+      } else if (err.status === 503) {
         setError('เซิร์ฟเวอร์ยังไม่ได้เปิดใช้งาน Control Panel API key');
       } else {
-        setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+        setError(err.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
       }
     } finally {
       setLoading(false);
@@ -44,14 +44,14 @@ export const ApiKeyGate = ({ onSuccess }) => {
       <form 
         onSubmit={handleSubmit}
         style={{
-          background: 'rgba(30, 30, 45, 0.45)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          background: 'var(--card)',
+          border: '1px solid var(--border)',
           backdropFilter: 'blur(12px)',
           borderRadius: '24px',
           padding: '40px',
           width: '100%',
           maxWidth: '420px',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+          boxShadow: 'var(--shadow)',
           display: 'flex',
           flexDirection: 'column',
           gap: '24px',
@@ -63,13 +63,13 @@ export const ApiKeyGate = ({ onSuccess }) => {
           <h2 style={{ marginTop: '16px', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-h)' }}>
             เข้าสู่ Control Panel
           </h2>
-          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginTop: '8px', lineHeight: '1.6' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text)', marginTop: '8px', lineHeight: '1.6', opacity: 0.8 }}>
             กรุณากรอก API Key ที่ตั้งค่าไว้ในไฟล์ระบบ (.env) เพื่อเข้าสู่การจัดการระบบเบื้องหลัง
           </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
-          <label style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255, 255, 255, 0.6)' }}>
+          <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-h)', opacity: 0.8 }}>
             CONTROL PANEL API KEY
           </label>
           <input
@@ -79,9 +79,9 @@ export const ApiKeyGate = ({ onSuccess }) => {
             onChange={(e) => setApiKey(e.target.value)}
             disabled={loading}
             style={{
-              background: 'rgba(10, 10, 15, 0.8)',
+              background: 'var(--bg)',
               color: 'var(--text-h)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              border: '1px solid var(--border)',
               borderRadius: '12px',
               padding: '14px 16px',
               fontSize: '15px',
@@ -113,7 +113,7 @@ export const ApiKeyGate = ({ onSuccess }) => {
           disabled={loading || !apiKey.trim()}
           style={{
             padding: '14px',
-            background: loading ? 'rgba(255,255,255,0.05)' : 'var(--accent)',
+            background: loading ? 'var(--code-bg)' : 'var(--accent)',
             color: '#fff',
             border: 'none',
             borderRadius: '12px',
