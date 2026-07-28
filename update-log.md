@@ -40,3 +40,12 @@
 - Created `.agent-work/handoffs/sol-to-luna.md` for a narrow Phase 1: pure privacy contracts, latest-only in-memory observation store, injected coordinator, and queue-free adaptive controller tested only with fixed fixtures.
 - Transitioned lifecycle state from `REQUIREMENTS_APPROVAL` through `PLANNING` to `IMPLEMENTATION`, with Luna assigned Phase 1.
 - No implementation code, dependency/lockfile, runtime/model, screenshot, or art/model asset was changed or created.
+
+## 2026-07-28 — Luna Phase 1 execution blocker
+
+- Verified that Desktop does not expose `gpt-5.6-luna`, then activated the lifecycle-approved Codex CLI fallback with model `gpt-5.6-luna`, high reasoning, an ephemeral session, and `workspace-write` sandbox.
+- Luna was blocked before repository inspection because `codex-windows-sandbox-setup.exe` failed to launch with `Access is denied (os error 5)`.
+- Luna retried the instruction read, tested minimal commands in two working directories, and attempted to write its blocker handoff; every action failed at the same sandbox-helper boundary.
+- Did not use a dangerous bypass, broaden the sandbox, change machine configuration, install software, or substitute Sol/Terra for Luna.
+- Confirmed that no implementation, dependency, lockfile, model, image, Live2D, environment, or machine-level file changed.
+- Recorded `.agent-work/handoffs/luna-cli-result.md` and `.agent-work/handoffs/luna-blocker.md`, and transitioned lifecycle state to `HANDOFF_REQUIRED`.
