@@ -1,10 +1,10 @@
 # Synthenia Requirements
 
 - Version: 1
-- Status: pending
-- Approval identity: not yet provided
-- Approval evidence: none; explicit user approval is required before planning or implementation
-- Lifecycle state: REQUIREMENTS_APPROVAL
+- Status: approved
+- Approval identity: repository user ("only me"; hobby/noncommercial owner)
+- Approval evidence: explicit chat statement on 2026-07-28, `อนุมัติ Requirements v1 พร้อมค่าแนะนำ`, accompanied by answers to all ten open questions
+- Lifecycle state: IMPLEMENTATION
 - Prepared by: Sol (discovery)
 - Date: 2026-07-28
 
@@ -50,9 +50,9 @@ Audit and stabilize the existing local-first Synthenia application before extend
 1. Screen capture must be off by default and begin only from an explicit user action.
 2. The browser/user must select the capture source; permission must be requested per capture session.
 3. The UI must show a persistent capture-active indicator and a one-action stop control.
-4. The user must be able to submit either a single snapshot or a bounded, low-frequency capture stream; continuous capture behavior remains an approval question.
+4. The user must be able to submit either a single snapshot or a bounded periodic capture stream. The desired polling opportunity is approximately every 5 seconds when the device can sustain it; the implementation must be single-flight, apply adaptive backpressure, and never queue work every 5 seconds when inference is slower.
 5. Captures must be processed locally by default. No image may be sent to an external provider unless the user explicitly enables and confirms that provider.
-6. Raw captures, derived descriptions, OCR text, and model prompts must not be logged, stored in conversation memory, or retained on disk by default.
+6. Raw captures, derived descriptions, OCR text, and model prompts must not be logged or retained on disk. A validated derived description may enter bounded short-term conversation context, but it must always be excluded from long-term memory.
 7. Image dimensions, encoded byte size, rate, timeout, and concurrency must be bounded server-side. Unsupported media must fail closed.
 8. A stopped, revoked, hidden, disconnected, or errored capture session must release tracks and clear in-memory buffers.
 9. Screen context must be separated from user-authored text and clearly marked as untrusted observational input to reduce prompt-injection risk from screen content.
@@ -131,23 +131,25 @@ Audit and stabilize the existing local-first Synthenia application before extend
 
 ## Dependencies
 
-- Explicit approval of requirements version 1.
-- User decision on capture mode and retention policy.
-- User-provided target hardware/performance expectations.
-- A permitted 2B–4B vision-capable Ollama model (officially listed `gemma3:4b` is a candidate, not yet approved or downloaded).
-- Original/licensed layered art and approval of Syn’s design.
+- Explicit approval of requirements version 1 (satisfied on 2026-07-28).
+- A permitted 2B–4B vision-capable Ollama model. The user approved already-installed `gemma3:4b` as the first candidate; no model or machine installation is authorized.
+- An original-art workflow and later approval of the concrete Syn concept before asset production. The user has no existing source art and authorized the project to design an original concept.
 - Live2D Cubism Editor access suitable for the intended model complexity, plus review of SDK/runtime and publication terms.
 - A supported runtime path for the chosen Cubism format.
 - PostgreSQL/Ollama/TTS dependencies for full integration testing.
 
 ## Assumptions
 
-- Synthenia is primarily a single-user local application today.
+- Synthenia is strictly single-user and local/loopback-only for the approved scope. LAN, public, and multi-user behavior are excluded.
 - Browser screen capture is acceptable if explicitly initiated and visibly active.
 - The current Illyasviel asset may remain temporarily as a development fallback but is not assumed to be redistributable.
 - “Replacement model” means an original Syn character asset, not only a model-tag change in Ollama.
 - Small-model latency is more important than continuous high-frame-rate vision.
 - Documentation and tests may describe commercial-license questions but cannot resolve legal ownership without user evidence.
+- The target machine is a Ryzen 5 3500U with 16 GB RAM (approximately 14 GB usable after 2 GB reserved) and integrated Vega 8 graphics with shared memory and no discrete VRAM.
+- Approved benchmark budgets are: warm vision response target at or below 60 seconds, cold response target at or below 180 seconds, and a hard per-case timeout of 8 minutes. Manual snapshot remains the fallback if periodic analysis is not sustainable.
+- Syn is an original adult-presenting young woman, approximately 18–20 years old, initially scoped to simple casual white clothing. Detailed palette, silhouette, expressions, and motion language will be designed in the original-art phase and reviewed before rigging or final asset production.
+- The project is a private hobby with no current commercial or distribution plan. Any later commercial, public, distributed, extensible, LAN, or multi-user use reopens licensing and security approval.
 
 ## Acceptance Criteria
 
@@ -212,19 +214,26 @@ Audit and stabilize the existing local-first Synthenia application before extend
 - **Dependency advisories:** the current frontend tree reports critical/high advisories, including a vulnerable `gh-pages` dependency pulled by `pixi-live2d-display@0.4.0`.
 - **Test gap:** no frontend component, browser, screenshot privacy, Live2D visual, or end-to-end tests are configured.
 
-## Open Questions Requiring User Decision
+## Resolved Approval Decisions
 
-1. Is Synthenia strictly single-user/loopback, or must LAN/public/multi-user modes be supported?
-2. Should screen understanding be manual snapshots only, periodic capture, or both? If periodic, what minimum interval is acceptable?
-3. May derived screen descriptions enter short-term conversation context, and must they always be excluded from long-term memory?
-4. What hardware (CPU, GPU/VRAM, RAM) and maximum cold/warm response latency should the 2B–4B benchmark target?
-5. Is `gemma3:4b` an acceptable first vision candidate, or is another already-installed 2B–4B model preferred?
-6. What is Syn’s approved appearance, outfit, age presentation, palette, personality cues, and required expressions?
-7. Will the user provide original layered art/PSD and Live2D source, commission it, or authorize a separate original-art workflow?
-8. Is the planned application commercial, distributed, or extensible by end users? This affects Live2D licensing review.
-9. Should the implementation migrate to Cubism 3/4 runtime immediately or keep dual Cubism 2/4 support until the replacement is accepted?
-10. May the stabilization phase repair the checkpointed encoding regression and dependency tree before feature work?
+1. Deployment is single-user, local, and loopback-only.
+2. Screen understanding supports manual snapshots and periodic operation, targeting a 5-second polling opportunity only when sustainable.
+3. Derived descriptions may enter short-term conversation context and must never enter long-term memory, files, or logs.
+4. Benchmark hardware and latency budgets are recorded above.
+5. `gemma3:4b` is approved as the first vision candidate.
+6. Syn is an original adult-presenting 18–20-year-old character in simple casual white clothing; the project is authorized to design the remaining visual details.
+7. No PSD, layered art, or Live2D source exists. An original-art workflow is authorized; copying, tracing, recoloring, or reverse-engineering Illyasviel remains prohibited.
+8. The current use is private, hobby, and noncommercial.
+9. Cubism runtime migration is authorized if required; dual Cubism 2/4 support is acceptable when it provides the safer rollback.
+10. The user explicitly deferred repair of the checkpointed mojibake regression and production dependency tree. Do not include either repair in an implementation handoff until renewed approval.
 
-## Approval Request
+## Approved Stabilization Exception and Completion Gate
 
-Approve requirements version 1 explicitly, or answer/correct the open questions. Planning and implementation must not begin until approval is recorded.
+- The user-approved sequencing exception permits feature-foundation work before the known mojibake and dependency findings are remediated.
+- This exception does not dismiss or downgrade the findings. The two High and two Critical frontend production advisories and the known encoding regression remain open, documented risks.
+- No implementation phase may opportunistically rewrite the affected Thai copy, run an automatic dependency fix, change the Live2D dependency/runtime package, or regenerate a lockfile for remediation purposes.
+- Under the lifecycle completion contract, Synthenia cannot be marked `COMPLETE` while any Critical or High finding remains. The final stabilization/remediation phase therefore requires renewed user approval before it can execute, or the lifecycle must end `USER_DECISION_REQUIRED`.
+
+## Approval Record
+
+Requirements version 1 was explicitly approved on 2026-07-28 with the decisions and recommended defaults recorded above. Planning may proceed. Approval must be reopened only for a material change to behavior, scope, cost, security/data handling, architecture, licensing posture, or the explicitly deferred remediation boundary.

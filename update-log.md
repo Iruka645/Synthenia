@@ -30,3 +30,13 @@
 - Reviewed current official Live2D authoring/runtime/licensing documentation, browser Screen Capture API constraints, and official Ollama vision-model listings.
 - Created and pushed the pre-audit rollback checkpoint `1adfc91` (`chore: checkpoint pre-audit project state`) to `origin/main`.
 - Excluded machine-specific Graphify interpreter data, caches, and temporary query vocabulary from the checkpoint; no `.env`, credential, screenshot, or model download was committed.
+
+## 2026-07-28 — Requirements approval and planning v1
+
+- Recorded the user's explicit approval of Requirements v1 and all resolved decisions: local/loopback single-user operation; manual plus adaptive periodic screen analysis; short-term-only derived descriptions; Ryzen 5 3500U/16 GB/Vega 8 target; `gemma3:4b` first candidate; original adult-presenting Syn design in casual white clothing; original-art authorization; hobby/noncommercial posture; and conditional Cubism migration.
+- Recorded approved performance defaults: warm vision target at or below 60 seconds, cold target at or below 180 seconds, hard 8-minute timeout, and manual fallback.
+- Recorded the explicit exception deferring checkpointed mojibake and dependency remediation. The known two High and two Critical frontend advisories remain lifecycle completion blockers and were not modified.
+- Created `.agent-work/implementation-plan.md` version 1 with ordered architecture, privacy/security contracts, interfaces, pseudocode, tests, compatibility, recovery, phase gates, and renewed-approval triggers.
+- Created `.agent-work/handoffs/sol-to-luna.md` for a narrow Phase 1: pure privacy contracts, latest-only in-memory observation store, injected coordinator, and queue-free adaptive controller tested only with fixed fixtures.
+- Transitioned lifecycle state from `REQUIREMENTS_APPROVAL` through `PLANNING` to `IMPLEMENTATION`, with Luna assigned Phase 1.
+- No implementation code, dependency/lockfile, runtime/model, screenshot, or art/model asset was changed or created.
