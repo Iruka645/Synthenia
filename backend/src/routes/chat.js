@@ -1,4 +1,4 @@
-// Calling libs
+﻿// Calling libs
 const express = require('express');
 const router = express.Router();
 const { getIO } = require('../websocket');
@@ -16,6 +16,11 @@ const gameCommentaryService = require("../services/gameCommentaryService");
 const multer = require('multer')
 const fs = require('fs')
 const path = require('path')
+const { EMOTION_VALUES } = require("../config/emotions");
+const { resourceAuth } = require('../middleware/routePolicies');
+const { chatLimit, sttLimit } = require('../middleware/rateLimits');
+const securityConfig = require('../config/securityConfig');
+const crypto = require('crypto');
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads');
@@ -29,27 +34,31 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    cb(null, `voice-${Date.now()}.wav`);
+    cb(null, `${crypto.randomUUID()}.wav`);
   }
 });
-const upload = multer({ storage });
+const upload = multer({ storage, limits: { fileSize: securityConfig.maxAudioBytes, files: 1 }, fileFilter: (_req, file, cb) => { const allowed = new Set(['audio/wav', 'audio/x-wav', 'audio/webm']); cb(null, allowed.has(file.mimetype)); } });
 
 //POST chat request
-router.post("/chat", async (req, res) => {
-  const { message } = req.body;
+router.post("/chat", resourceAuth, chatLimit, async (req, res) => {
+  const { message, emotion: inputEmotion } = req.body;
 
   if (!message || typeof message !== 'string' || !message.trim()) {
-    return res.status(400).json({ error: 'ต้องส่ง message มาด้วย', message: message });
+    return res.status(400).json({ error: 'à¸•à¹‰à¸­à¸‡à¸ªà¹ˆà¸‡ message à¸¡à¸²à¸”à¹‰à¸§à¸¢', message: message });
   }
+
+  // Validate user emotion against allowed values. Default to null if invalid or not provided.
+  const validatedEmotion = EMOTION_VALUES.includes(inputEmotion) ? inputEmotion : null;
+
   try {
     // Generate embedding once for user message
     const embedding = await embeddingService.getEmbedding(message.trim());
 
-    // Phase 4: Fire-and-forget — DB write does not block chat
-    memoryWriteService.saveMessage('user', message.trim(), null, embedding)
+    // Phase 4: Fire-and-forget â€” DB write does not block chat
+    memoryWriteService.saveMessage('user', message.trim(), validatedEmotion, embedding)
       .catch(err => console.error('[Chat] Error saving user message:', err.message));
 
-    const { reply, emotion } = await ollamaService.chat(message.trim(), embedding);
+    const { reply, emotion } = await ollamaService.chat(message.trim(), embedding, validatedEmotion);
     
     const ttsJobId = `tts-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 
@@ -78,14 +87,14 @@ router.post("/chat", async (req, res) => {
     
   } catch (error) {
     console.error('Chat error:', error.message);
-    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการคุยกับ LLM' });
+    res.status(500).json({ error: 'à¹€à¸à¸´à¸”à¸‚à¹‰à¸­à¸œà¸´à¸”à¸žà¸¥à¸²à¸”à¹ƒà¸™à¸à¸²à¸£à¸„à¸¸à¸¢à¸à¸±à¸š LLM' });
   }
 })
 
 //POST transcribe voice request
-router.post("/transcribe", upload.single('audio'), async (req, res) => {
+router.post("/transcribe", resourceAuth, sttLimit, upload.single('audio'), async (req, res) => {
   if (!req.file) {
-    return res.status(400).json({ error: 'ไม่พบไฟล์เสียงสำหรับการแปลงข้อความ' });
+    return res.status(400).json({ error: 'à¹„à¸¡à¹ˆà¸žà¸šà¹„à¸Ÿà¸¥à¹Œà¹€à¸ªà¸µà¸¢à¸‡à¸ªà¸³à¸«à¸£à¸±à¸šà¸à¸²à¸£à¹à¸›à¸¥à¸‡à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡' });
   }
 
   const filePath = req.file.path;
@@ -95,7 +104,7 @@ router.post("/transcribe", upload.single('audio'), async (req, res) => {
     res.json({ text: transcribedText });
   } catch (error) {
     console.error('Transcription error:', error.message);
-    res.status(500).json({ error: 'เกิดข้อผิดพลาดในการแปลงเสียงเป็นข้อความ' });
+    res.status(500).json({ error: 'à¹€à¸à¸´à¸”à¸‚à¹‰à¸­à¸œà¸´à¸”à¸žà¸¥à¸²à¸”à¹ƒà¸™à¸à¸²à¸£à¹à¸›à¸¥à¸‡à¹€à¸ªà¸µà¸¢à¸‡à¹€à¸›à¹‡à¸™à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡' });
   } finally {
     // Delete temporary file to clean up space
     fs.unlink(filePath, (err) => {
@@ -105,7 +114,7 @@ router.post("/transcribe", upload.single('audio'), async (req, res) => {
 });
 
 //POST reset conversation
-router.post('/chat/reset', async (req, res) => {
+router.post('/chat/reset', resourceAuth, async (req, res) => {
   ollamaService.resetHistory();
 
   // End current session and trigger memory consolidation asynchronously
@@ -116,7 +125,7 @@ router.post('/chat/reset', async (req, res) => {
     console.error('Error during session reset consolidation trigger:', err);
   }
 
-  res.json({ message: 'reset conversation history เรียบร้อย' });
+  res.json({ message: 'reset conversation history à¹€à¸£à¸µà¸¢à¸šà¸£à¹‰à¸­à¸¢' });
 });
 
 // GET chat status (model readiness check)
@@ -125,19 +134,19 @@ router.get('/chat/status', (req, res) => {
 });
 
 // POST game move request (OX Game)
-router.post("/game/move", async (req, res) => {
+router.post("/game/move", resourceAuth, chatLimit, async (req, res) => {
   const { board, move } = req.body;
 
   if (!board || !Array.isArray(board) || board.length !== 9) {
-    return res.status(400).json({ error: "กระดาน OX ต้องมีขนาด 9 ช่อง" });
+    return res.status(400).json({ error: "à¸à¸£à¸°à¸”à¸²à¸™ OX à¸•à¹‰à¸­à¸‡à¸¡à¸µà¸‚à¸™à¸²à¸” 9 à¸Šà¹ˆà¸­à¸‡" });
   }
 
   // 1. Process Ken's move
   if (move !== undefined && move !== null) {
     if (move < 0 || move > 8 || board[move] !== 'X') {
-      return res.status(400).json({ error: "การเดินช่องนี้ไม่ถูกต้อง" });
+      return res.status(400).json({ error: "à¸à¸²à¸£à¹€à¸”à¸´à¸™à¸Šà¹ˆà¸­à¸‡à¸™à¸µà¹‰à¹„à¸¡à¹ˆà¸–à¸¹à¸à¸•à¹‰à¸­à¸‡" });
     }
-    await memoryWriteService.saveMessage('user', `เล่นเกม OX: ฉันเดินที่ช่อง ${move}`);
+    await memoryWriteService.saveMessage('user', `à¹€à¸¥à¹ˆà¸™à¹€à¸à¸¡ OX: à¸‰à¸±à¸™à¹€à¸”à¸´à¸™à¸—à¸µà¹ˆà¸Šà¹ˆà¸­à¸‡ ${move}`);
   }
 
   // 2. Check if Ken won or draw
@@ -152,13 +161,13 @@ router.post("/game/move", async (req, res) => {
     reply = commentary.reply;
     emotion = commentary.emotion;
 
-    await memoryWriteService.saveMessage('assistant', `ผลเกม OX จบลงด้วย: ${winner === 'X' ? 'Ken ชนะ' : 'เสมอ'} และฉันพูดว่า "${reply}"`, emotion);
+    await memoryWriteService.saveMessage('assistant', `à¸œà¸¥à¹€à¸à¸¡ OX à¸ˆà¸šà¸¥à¸‡à¸”à¹‰à¸§à¸¢: ${winner === 'X' ? 'Ken à¸Šà¸™à¸°' : 'à¹€à¸ªà¸¡à¸­'} à¹à¸¥à¸°à¸‰à¸±à¸™à¸žà¸¹à¸”à¸§à¹ˆà¸² "${reply}"`, emotion);
   } else {
     // 3. Syn's turn to move
     synMove = gameService.getBestMove(board, 'O');
     if (synMove !== -1) {
       board[synMove] = 'O';
-      await memoryWriteService.saveMessage('assistant', `ฉันเดินเกม OX ที่ช่อง ${synMove}`);
+      await memoryWriteService.saveMessage('assistant', `à¸‰à¸±à¸™à¹€à¸”à¸´à¸™à¹€à¸à¸¡ OX à¸—à¸µà¹ˆà¸Šà¹ˆà¸­à¸‡ ${synMove}`);
     }
 
     // 4. Check if Syn won or draw
@@ -169,7 +178,7 @@ router.post("/game/move", async (req, res) => {
     reply = commentary.reply;
     emotion = commentary.emotion;
 
-    await memoryWriteService.saveMessage('assistant', `ฉันเดินเกม OX ที่ช่อง ${synMove} และพูดว่า "${reply}"`, emotion);
+    await memoryWriteService.saveMessage('assistant', `à¸‰à¸±à¸™à¹€à¸”à¸´à¸™à¹€à¸à¸¡ OX à¸—à¸µà¹ˆà¸Šà¹ˆà¸­à¸‡ ${synMove} à¹à¸¥à¸°à¸žà¸¹à¸”à¸§à¹ˆà¸² "${reply}"`, emotion);
   }
 
   // 6. Generate speech audio for reply via WS
@@ -189,3 +198,4 @@ router.post("/game/move", async (req, res) => {
 });
 
 module.exports = router;
+

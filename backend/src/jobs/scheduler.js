@@ -1,9 +1,10 @@
-const cron = require('node-cron');
+﻿const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path');
 const consolidationWorker = require('../services/memory/consolidationWorker');
 const decayWorker = require('../services/memory/decayWorker');
 const configService = require('../services/config/configService');
+const securityConfig = require('../config/securityConfig');
 
 function initScheduler() {
   console.log('[Scheduler] Initializing cron jobs...');
@@ -46,7 +47,7 @@ function initScheduler() {
       const exists = await fs.promises.access(audioDir).then(() => true).catch(() => false);
       if (exists) {
         const files = await fs.promises.readdir(audioDir);
-        const cutoff = Date.now() - 24 * 60 * 60 * 1000; // keep last 24 hours
+        const cutoff = Date.now() - securityConfig.audioRetentionHours * 60 * 60 * 1000;
         let count = 0;
         for (const file of files) {
           const filePath = path.join(audioDir, file);
@@ -65,7 +66,29 @@ function initScheduler() {
     }
   });
 
+  // 4. Remove abandoned multipart uploads more frequently than generated audio.
+  cron.schedule('*/15 * * * *', async () => {
+    try {
+      const uploadsDir = path.join(__dirname, '..', '..', '..', 'uploads');
+      const files = await fs.promises.readdir(uploadsDir).catch(() => []);
+      const cutoff = Date.now() - securityConfig.uploadRetentionMinutes * 60 * 1000;
+      let count = 0;
+      for (const file of files) {
+        const filePath = path.join(uploadsDir, file);
+        const stat = await fs.promises.stat(filePath).catch(() => null);
+        if (stat && stat.isFile() && stat.mtimeMs < cutoff) {
+          await fs.promises.unlink(filePath).catch(() => {});
+          count++;
+        }
+      }
+      if (count) console.log(`[Scheduler] Removed ${count} abandoned uploads.`);
+    } catch (err) {
+      console.error('[Scheduler] Error cleaning uploads:', err.message);
+    }
+  });
+
   console.log('[Scheduler] Scheduled memory jobs registered.');
 }
 
 module.exports = { initScheduler };
+

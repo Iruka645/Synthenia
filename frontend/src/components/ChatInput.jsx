@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AudioRecorder from '../utils/audioRecorder';
 import { useUI } from '../contexts/UIContext';
+import { EMOTION_OPTIONS } from '../utils/emotions';
 
 const formatDuration = (sec) => {
   const m = Math.floor(sec / 60).toString().padStart(2, '0');
@@ -14,6 +15,7 @@ export const ChatInput = ({ onSend, onTranscribe, loading, placeholder }) => {
   const [recording, setRecording] = useState(false);
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [autoSend, setAutoSend] = useState(false); // Default to false so they can review transcribed text
+  const [selectedEmotion, setSelectedEmotion] = useState(null);
   const inputRef = useRef(null);
   const recorderRef = useRef(null);
 
@@ -35,8 +37,9 @@ export const ChatInput = ({ onSend, onTranscribe, loading, placeholder }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!text.trim() || loading || recording) return;
-    onSend(text);
+    onSend(text, selectedEmotion);
     setText('');
+    setSelectedEmotion(null);
     inputRef.current?.focus();
   };
 
@@ -69,7 +72,8 @@ export const ChatInput = ({ onSend, onTranscribe, loading, placeholder }) => {
           const transcribedText = await onTranscribe(wavBlob);
           if (transcribedText && transcribedText.trim()) {
             if (autoSend) {
-              onSend(transcribedText);
+              onSend(transcribedText, selectedEmotion);
+              setSelectedEmotion(null);
             } else {
               setText(transcribedText);
               // Focus the input to let the user edit the text
@@ -99,6 +103,23 @@ export const ChatInput = ({ onSend, onTranscribe, loading, placeholder }) => {
           />
           <span className="auto-send-text">ส่งคำตอบทันทีหลังพูดเสร็จ (Auto Send)</span>
         </label>
+      </div>
+
+      <div className="chat-emotion-picker">
+        <span className="emotion-picker-label">อารมณ์ของคุณ:</span>
+        {EMOTION_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            className={`emotion-option-btn ${selectedEmotion === opt.value ? 'active' : ''}`}
+            onClick={() => setSelectedEmotion(prev => prev === opt.value ? null : opt.value)}
+            disabled={loading || recording}
+            title={opt.label}
+          >
+            <span className="emotion-option-emoji">{opt.emoji}</span>
+            <span>{opt.label}</span>
+          </button>
+        ))}
       </div>
 
       <form className="chat-input-form" onSubmit={handleSubmit}>

@@ -1,8 +1,12 @@
-const express = require("express")
+﻿const express = require("express")
 const cors = require("cors")
 const http = require("http")
-const { initWebSocket } = require("./websocket")
+
 require("dotenv").config()
+const { initWebSocket } = require("./websocket")
+const securityConfig = require('./config/securityConfig');
+const { requestId, notFound, errorHandler } = require('./middleware/requestGuard');
+const originGuard = require('./middleware/originGuard');
 
 //Routing declare
 const chatRoutes = require('./routes/chat');
@@ -12,23 +16,27 @@ const llmManager = require('./services/llm/index');
 const ttsManager = require('./services/ttsService');
 
 //ENV define
-const PORT = process.env.PORT
+const PORT = securityConfig.port
+const HOST = securityConfig.host
 const AI_MODEL = process.env.AI_MODEL;
 
 
 //Application define
 const app = express();
+app.disable('x-powered-by');
+app.use(requestId);
+app.use(originGuard(securityConfig.allowedOrigins));
 
 const path = require('path');
 
 //CORS declaration
 app.use(cors({
-    origin: 'http://localhost:6060',
+    origin: securityConfig.allowedOrigins,
 }))
 
 //application level middleware
-app.use(express.json())
-app.use(express.urlencoded({extended:true}))
+app.use(express.json({ limit: securityConfig.jsonLimit }))
+app.use(express.urlencoded({ extended: true, limit: securityConfig.urlEncodedLimit }))
 
 const fs = require('fs');
 // Serve generated audio files
@@ -36,7 +44,7 @@ const audioDir = path.join(__dirname, '..', '..', 'audio');
 if (!fs.existsSync(audioDir)) {
   fs.mkdirSync(audioDir, { recursive: true });
 }
-app.use('/audio', express.static(audioDir));
+app.use('/audio', express.static(audioDir, { fallthrough: false, maxAge: '1h' }));
 
 //application routes
 app.get("/",(req,res)=>{
@@ -60,16 +68,19 @@ const memoryRoutes = require('./routes/memory');
 app.use("/api/memory", memoryRoutes);
 
 
+app.use(notFound);
+app.use(errorHandler);
+
 const server = http.createServer(app);
 initWebSocket(server);
 
 async function startServer() {
-  // โหลดค่า provider ที่เคย switch ไว้จาก DB ก่อนเปิดรับ request
+  // à¹‚à¸«à¸¥à¸”à¸„à¹ˆà¸² provider à¸—à¸µà¹ˆà¹€à¸„à¸¢ switch à¹„à¸§à¹‰à¸ˆà¸²à¸ DB à¸à¹ˆà¸­à¸™à¹€à¸›à¸´à¸”à¸£à¸±à¸š request
   await llmManager.initialize();
   await ttsManager.initialize();
 
-  server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  server.listen(PORT, HOST, () => {
+    console.log(`Server is running on ${HOST}:${PORT} (${securityConfig.mode} mode)`);
     console.log(`AI Model: ${AI_MODEL}`);
     console.log(`LLM Provider: ${llmManager.getCurrentProvider()}`);
     console.log(`TTS Provider: ${ttsManager.getCurrentProvider()}`);
@@ -125,3 +136,4 @@ function gracefulShutdown(signal) {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+

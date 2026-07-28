@@ -8,6 +8,7 @@ const PROMPT_SECTION_ORDER = [
   "identity",
   "personality",
   "speech_style",
+  "emotion_input",
   "json_schema",
   "memory_context",
 ];

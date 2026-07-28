@@ -51,8 +51,18 @@ Thumbs.db
 ehthumbs.db
 
 # Project plans and documentations
-*plan.md
-*plan*.md
+docs/
 
 # Logs
 backend/logs/*
+
+# skills
+.claude/
+.claude/*
+.claude-flow/
+.claude-flow/*
+.ruflo/
+.ruflo/*
+.mcp.json
+ruflo.config.json
+

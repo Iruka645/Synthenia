@@ -1,11 +1,12 @@
-const { Server } = require('socket.io');
+﻿const { Server } = require('socket.io');
+const securityConfig = require('./config/securityConfig');
 
 let io = null;
 
 function initWebSocket(httpServer) {
   io = new Server(httpServer, {
     cors: {
-      origin: 'http://localhost:6060',
+      origin: securityConfig.allowedOrigins,
       methods: ['GET', 'POST'],
     },
   });
@@ -29,3 +30,4 @@ function getIO() {
 }
 
 module.exports = { initWebSocket, getIO };
+

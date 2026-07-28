@@ -754,6 +754,57 @@ code {
   -webkit-user-select: none;
 }
 
+/* Chat Emotion Picker Styles */
+.chat-emotion-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 4px 8px 4px;
+  user-select: none;
+  scrollbar-width: none; /* Hide scrollbar for standard browsers */
+}
 
+.chat-emotion-picker::-webkit-scrollbar {
+  display: none; /* Hide scrollbar for Webkit */
+}
 
+.emotion-picker-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  margin-right: 4px;
+}
 
+.emotion-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 16px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.emotion-option-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--bg);
+  transform: translateY(-1px);
+}
+
+.emotion-option-btn.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 500;
+  box-shadow: 0 2px 6px var(--accent-bg);
+}
+
+.emotion-option-emoji {
+  font-size: 1rem;
+}

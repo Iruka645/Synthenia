@@ -1,4 +1,4 @@
-const { query } = require('../../db/pool');
+﻿const { query, pool } = require('../../db/pool');
 
 class DecayWorker {
   constructor() {
@@ -44,34 +44,40 @@ class DecayWorker {
       console.log(`[Memory Decay] Decayed importance score for total of ${totalDecayedRows} facts.`);
 
       // 2. Find facts with importance_score < 0.1 to archive (exclude memory_type = 'identity')
-      const toArchiveResult = await query(
-        `SELECT id
-         FROM semantic_facts
-         WHERE importance_score < 0.1 AND superseded_by IS NULL AND memory_type != 'identity'`
-      );
-
-      const toArchive = toArchiveResult.rows;
-      console.log(`[Memory Decay] Found ${toArchive.length} facts to archive.`);
-
-      if (toArchive.length > 0) {
-        const ids = toArchive.map(fact => fact.id);
-        
-        // Batch copy to archive table including memory_type
-        await query(
-          `INSERT INTO semantic_facts_archive (id, fact_text, category, memory_type, importance_score, confidence, source_session_id, access_count, last_accessed_at, created_at)
-           SELECT id, fact_text, category, memory_type, importance_score, confidence, source_session_id, access_count, last_accessed_at, created_at
-           FROM semantic_facts
-           WHERE id = ANY($1::int[])
-           ON CONFLICT (id) DO NOTHING`,
-          [ids]
-        );
-
-        // Batch delete from main table
-        await query(
-          `DELETE FROM semantic_facts WHERE id = ANY($1::int[])`,
-          [ids]
-        );
-        console.log(`[Memory Decay] Batch archived and deleted ${toArchive.length} facts.`);
+      // Archive and delete in one transaction. This prevents a crash between the
+      // copy and delete steps from leaving an inconsistent memory state.
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const archiveResult = await client.query(`
+          WITH candidates AS (
+            SELECT id FROM semantic_facts
+            WHERE importance_score < 0.1
+              AND superseded_by IS NULL
+              AND memory_type != 'identity'
+            FOR UPDATE SKIP LOCKED
+          ), archived AS (
+            INSERT INTO semantic_facts_archive
+              (id, fact_text, category, memory_type, importance_score, confidence,
+               source_session_id, access_count, last_accessed_at, created_at)
+            SELECT f.id, f.fact_text, f.category, f.memory_type, f.importance_score,
+              f.confidence, f.source_session_id, f.access_count, f.last_accessed_at, f.created_at
+            FROM semantic_facts f JOIN candidates c ON c.id = f.id
+            ON CONFLICT (id) DO NOTHING
+            RETURNING id
+          )
+          DELETE FROM semantic_facts f
+          USING archived a
+          WHERE f.id = a.id
+          RETURNING f.id
+        `);
+        await client.query('COMMIT');
+        console.log(`[Memory Decay] Atomically archived and deleted ${archiveResult.rowCount} facts.`);
+      } catch (archiveError) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw archiveError;
+      } finally {
+        client.release();
       }
 
       // 3. Episodic Pruning
@@ -103,3 +109,4 @@ class DecayWorker {
 }
 
 module.exports = new DecayWorker();
+

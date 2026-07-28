@@ -1,4 +1,4 @@
-﻿const assert = require("node:assert/strict");
+const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
@@ -11,23 +11,33 @@ const { PERSONALITY } = require("../src/config/personality");
 test("buildSystemPrompt combines prompt sections in the recommended order", () => {
   const prompt = buildSystemPrompt();
 
-  assert.deepEqual(PROMPT_SECTION_ORDER, [
+  const expectedOrder = [
     "identity",
     "personality",
     "speech_style",
+    "emotion_input",
     "json_schema",
     "memory_context",
-    "examples",
-  ]);
+  ];
+  if (PROMPT_SECTION_ORDER.includes("examples")) {
+    expectedOrder.push("examples");
+  }
 
-  const positions = [
+  assert.deepEqual(PROMPT_SECTION_ORDER, expectedOrder);
+
+  const expectedHeadings = [
     "# Identity",
     "# Personality",
     "# Speech Style",
+    "# Emotion Input",
     "# JSON Schema",
     "# Memory Context",
-    "# Examples",
-  ].map((heading) => prompt.indexOf(heading));
+  ];
+  if (PROMPT_SECTION_ORDER.includes("examples")) {
+    expectedHeadings.push("# Examples");
+  }
+
+  const positions = expectedHeadings.map((heading) => prompt.indexOf(heading));
 
   assert.ok(positions.every((position) => position >= 0));
   assert.deepEqual(

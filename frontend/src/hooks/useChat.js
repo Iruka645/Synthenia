@@ -210,7 +210,7 @@ export const useChat = () => {
     }, 120_000);
   }, [playAudioWithAnalysis, showToast]);
 
-  const send = useCallback(async (text) => {
+  const send = useCallback(async (text, emotion = null) => {
     if (!text || !text.trim()) return;
 
     if (audioAnalyserRef.current) {
@@ -229,6 +229,7 @@ export const useChat = () => {
       id: Date.now() + '-user',
       text: trimmedText,
       sender: 'user',
+      emotion: emotion,
       timestamp: new Date(),
     };
 
@@ -240,7 +241,7 @@ export const useChat = () => {
     setCurrentEmotion('thinking');
 
     try {
-      const response = await sendMessage(trimmedText, controller.signal);
+      const response = await sendMessage(trimmedText, emotion, controller.signal);
       if (reqId !== requestIdRef.current) return; // Discard stale response
 
       const assistantMessage = {

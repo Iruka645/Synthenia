@@ -1,4 +1,4 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 import { io } from 'socket.io-client';
 
 const api = axios.create({
@@ -29,16 +29,21 @@ api.interceptors.response.use(
       window.dispatchEvent(new Event('auth-unauthorized'));
     }
 
+    let normalizedErrorCode;
+
     // Normalize error message
-    let message = 'เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์';
+    let message = 'à¹€à¸à¸´à¸”à¸‚à¹‰à¸­à¸œà¸´à¸”à¸žà¸¥à¸²à¸”à¹ƒà¸™à¸à¸²à¸£à¹€à¸Šà¸·à¹ˆà¸­à¸¡à¸•à¹ˆà¸­à¸à¸±à¸šà¹€à¸‹à¸´à¸£à¹Œà¸Ÿà¹€à¸§à¸­à¸£à¹Œ';
     if (error.response && error.response.data && error.response.data.error) {
-      message = error.response.data.error;
+      const payload = error.response.data.error;
+      message = typeof payload === 'string' ? payload : (payload.message || 'Request failed');
+      normalizedErrorCode = typeof payload === 'object' ? payload.code : undefined;
     } else if (error.message) {
       message = error.message;
     }
 
     const normalizedError = new Error(message);
     normalizedError.status = error.response?.status;
+    normalizedError.code = normalizedErrorCode;
     normalizedError.originalError = error;
 
     return Promise.reject(normalizedError);
@@ -61,8 +66,8 @@ export const socket = io(WS_URL, {
   reconnectionDelay: 2000,
 });
 
-export const sendMessage = async (message, signal) => {
-  const response = await api.post('/chat', { message }, { signal });
+export const sendMessage = async (message, emotion, signal) => {
+  const response = await api.post('/chat', { message, emotion }, { signal });
   return response.data;
 };
 
@@ -187,3 +192,4 @@ export const verifyApiKey = async (apiKey) => {
 };
 
 export default api;
+

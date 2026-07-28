@@ -4,6 +4,7 @@ const { PERSONALITY, MODEL_CONFIG } = require("../config/personality");
 const { buildMemoryContext, buildSystemPrompt } = require("../prompts/system_builder");
 const memoryRetrievalService = require("./memory/memoryRetrievalService");
 const llmManager = require("./llm/index");
+const { EMOTION_LABELS_TH } = require("../config/emotions");
 
 // For preloading Ollama models locally on startup
 const { Ollama } = require("ollama");
@@ -17,7 +18,7 @@ const ollama = new Ollama({
 
 let conversationHistory = [{ role: "system", content: PERSONALITY }];
 
-async function chat(userMessage, precalculatedEmbedding = null) {
+async function chat(userMessage, precalculatedEmbedding = null, userEmotion = null) {
   let memoryContext = "";
   try {
     const [retrievalResult, reflectiveSummary] = await Promise.all([
@@ -32,7 +33,13 @@ async function chat(userMessage, precalculatedEmbedding = null) {
   }
 
   conversationHistory[0].content = buildSystemPrompt({ memoryContext });
-  conversationHistory.push({ role: "user", content: userMessage });
+
+  let composedMessage = userMessage;
+  if (userEmotion && EMOTION_LABELS_TH[userEmotion]) {
+    composedMessage = `[Ken รู้สึก: ${EMOTION_LABELS_TH[userEmotion]}]\n${userMessage}`;
+  }
+
+  conversationHistory.push({ role: "user", content: composedMessage });
 
   try {
     const ai = await llmManager.chat(conversationHistory);

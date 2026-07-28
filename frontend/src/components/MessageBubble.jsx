@@ -1,21 +1,6 @@
 import React from 'react';
 import { useUI } from '../contexts/UIContext';
-
-// Mapping emotion to emoji
-const getEmotionEmoji = (emotion) => {
-  switch (emotion) {
-    case 'happy': return '😊';
-    case 'laugh': return '😆';
-    case 'embarrassed': return '😳';
-    case 'annoyed': return '😒';
-    case 'sad': return '😢';
-    case 'thinking': return '🤔';
-    case 'surprised': return '😲';
-    case 'neutral':
-    default:
-      return '👧';
-  }
-};
+import { getEmotionEmoji } from '../utils/emotions';
 
 // Format the time as HH:MM
 const formatTime = (dateObj) => {
@@ -102,8 +87,8 @@ export const MessageBubble = React.memo(({ message }) => {
       </div>
 
       {isUser && (
-        <div className="avatar user-avatar">
-          <span>U</span>
+        <div className="avatar user-avatar" title={message.emotion ? `อารมณ์: ${message.emotion}` : undefined}>
+          <span>{message.emotion ? getEmotionEmoji(message.emotion, true) : 'U'}</span>
         </div>
       )}
     </div>
