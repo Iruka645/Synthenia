@@ -49,3 +49,27 @@
 - Did not use a dangerous bypass, broaden the sandbox, change machine configuration, install software, or substitute Sol/Terra for Luna.
 - Confirmed that no implementation, dependency, lockfile, model, image, Live2D, environment, or machine-level file changed.
 - Recorded `.agent-work/handoffs/luna-cli-result.md` and `.agent-work/handoffs/luna-blocker.md`, and transitioned lifecycle state to `HANDOFF_REQUIRED`.
+
+## 2026-07-28 — User-authorized Luna retry
+
+- The user explicitly authorized bypassing the failed Codex sandbox for code implementation only.
+- Resumed Phase 1 with the authorization constrained to files, tests, and workflow evidence inside `D:\Synthenia`.
+- Machine configuration, installations, network/model calls, dependency/lockfile changes, environment files, Live2D assets, destructive Git actions, and writes outside the repository remain prohibited.
+- Transitioned lifecycle state from `HANDOFF_REQUIRED` back to `IMPLEMENTATION` for the Luna retry.
+
+## 2026-07-28 — Luna Phase 1 implementation
+
+- Implemented only the approved Phase 1 privacy/scheduling foundation and preserved unrelated dirty work.
+- Added immutable vision bounds, exact capture/observation contracts, fail-closed PNG/JPEG/WebP header validation, fixed untrusted prompt segmentation, latest-only in-memory observation storage, and dependency-injected single-flight coordinator behavior.
+- Added the framework-neutral adaptive capture controller, payload-free frontend status/error normalization, deterministic base64 PNG fixture, and built-in Node test suites.
+- Modified only the authorized `frontend/package.json` script entry (`test:vision`); no dependencies or lockfiles changed.
+- Validation passed: backend 31/31 tests; frontend Phase 1 tests 7/7; frontend lint passed with the same 9 pre-existing warnings; frontend build passed with the existing large Pixi chunk warning; `git diff --check` passed with line-ending warnings.
+- Ran `graphify update .` as required. It refreshed the code graph to 1,675 nodes, 2,386 edges, and 120 communities, with the existing zero-node warning for several non-code/config files.
+- Wrote `.agent-work/handoffs/luna-to-terra.md`; Terra audit is pending. Known mojibake and dependency advisories remain explicitly deferred and open.
+
+## 2026-07-28 — User-requested session handoff
+
+- Stopped before Terra audit when the user requested a handoff with the current progress.
+- Transitioned lifecycle state to `HANDOFF_REQUIRED`; Phase 1 remains implemented but unaudited.
+- Created `.agent-work/handoffs/session-handoff.md` with completed scope, validation evidence, limitations, authorization boundary, and the exact resume order.
+- Did not start Phase 2, invoke Ollama, capture a screen, create Syn artwork, modify Live2D assets, or perform remediation.

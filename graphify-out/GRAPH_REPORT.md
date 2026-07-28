@@ -1,15 +1,16 @@
-# Graph Report - D:\Synthenia  (2026-07-20)
+# Graph Report - Synthenia  (2026-07-28)
 
 ## Corpus Check
-- cluster-only mode — file stats not available
+- 175 files · ~161,252 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1199 nodes · 1836 edges · 82 communities (54 shown, 28 thin omitted)
-- Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 26 edges (avg confidence: 0.55)
+- 1675 nodes · 2386 edges · 120 communities (86 shown, 34 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 38 edges (avg confidence: 0.54)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e52cec4f`
+- Built from commit: `54f063c4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -46,7 +47,6 @@
 - api.js
 - index.js
 - index.js
-- a
 - .init
 - security.test.js
 - react
@@ -90,6 +90,36 @@
 - vite.config.js
 - __init__.py
 - __init__.py
+- ae
+- AGENTS.md — Synthenia Project
+- SKILL.md
+- Caveman Help
+- SKILL.md
+- Caveman Help
+- Sol to Luna Handoff — Phase 1
+- Caveman Compress
+- SKILL.md
+- X
+- Caveman Compress
+- SKILL.md
+- caveman-commit
+- caveman-review
+- ao
+- caveman-commit
+- caveman-review
+- Luna Blocker Handoff — Phase 1
+- ah
+- caveman-stats
+- caveman-stats
+- Synthenia Update Log
+- Q: Graphify ทำงานถูกต้องไหม และอ่านง่ายขึ้นแค่ไหนเมื่อเทียบกับปกติ
+- aq
+- React + Vite
+- Lifecycle Status
+- AvatarCanvas.jsx
+- AGENTS.md
+- emotion_input.md
+- README.md
 
 ## God Nodes (most connected - your core abstractions)
 1. `Y()` - 43 edges
@@ -110,79 +140,71 @@
   frontend/src/components/ControlPanel.jsx → frontend/public/vendor/live2d.min.js
 - `useChat()` --indirect_call--> `e()`  [INFERRED]
   frontend/src/hooks/useChat.js → frontend/public/vendor/live2d.min.js
-- `TTSConfigTab()` --calls--> `getMemoryStats()`  [EXTRACTED]
-  frontend/src/components/tabs/TTSConfigTab.jsx → frontend/src/services/api.js
-- `compress_file()` --calls--> `validate()`  [EXTRACTED]
-  .agents/skills/caveman-compress/scripts/compress.py → .agents/skills/caveman-compress/scripts/validate.py
+- `ChatInput()` --calls--> `useUI()`  [EXTRACTED]
+  frontend/src/components/ChatInput.jsx → frontend/src/contexts/UIContext.jsx
+- `LLMConfigTab()` --calls--> `useUI()`  [EXTRACTED]
+  frontend/src/components/tabs/LLMConfigTab.jsx → frontend/src/contexts/UIContext.jsx
 
 ## Import Cycles
 - None detected.
 
-## Communities (82 total, 28 thin omitted)
+## Communities (120 total, 34 thin omitted)
 
 ### Community 0 - "B"
 Cohesion: 0.06
-Nodes (3): ab(), B(), e()
+Nodes (4): a(), ab(), B(), e()
 
 ### Community 2 - "ollamaService.js"
-Cohesion: 0.07
-Nodes (40): ALL_EMOTIONS, autoChecks(), { buildSystemPrompt }, { CHARACTER_BENCHMARK }, client, countSentences(), escapeMarkdownTable(), fs (+32 more)
-
-### Community 3 - "v"
-Cohesion: 0.05
-Nodes (4): ah(), ao(), M(), v()
+Cohesion: 0.06
+Nodes (42): ALL_EMOTIONS, autoChecks(), { buildSystemPrompt }, { CHARACTER_BENCHMARK }, client, countSentences(), escapeMarkdownTable(), fs (+34 more)
 
 ### Community 4 - "dependencies"
 Cohesion: 0.05
-Nodes (39): clsx, dependencies, axios, clsx, pixi.js, pixi-live2d-display, react-dom, socket.io-client (+31 more)
+Nodes (40): clsx, dependencies, axios, clsx, pixi.js, pixi-live2d-display, react-dom, socket.io-client (+32 more)
 
 ### Community 5 - "package.json"
 Cohesion: 0.05
 Nodes (36): author, dependencies, axios, cors, dotenv, express, multer, node-cron (+28 more)
 
-### Community 6 - "S"
-Cohesion: 0.06
-Nodes (3): aq(), S(), X()
-
 ### Community 7 - "compress.py"
-Cohesion: 0.12
-Nodes (27): main(), print_usage(), backup_dir_for(), build_compress_prompt(), build_fix_prompt(), call_claude(), compress_file(), is_sensitive_path() (+19 more)
+Cohesion: 0.07
+Nodes (49): benchmark_pair(), count_tokens(), main(), print_table(), Path, main(), print_usage(), backup_dir_for() (+41 more)
 
 ### Community 9 - "compress.py"
-Cohesion: 0.12
-Nodes (27): main(), print_usage(), backup_dir_for(), build_compress_prompt(), build_fix_prompt(), call_claude(), compress_file(), is_sensitive_path() (+19 more)
+Cohesion: 0.07
+Nodes (49): benchmark_pair(), count_tokens(), main(), print_table(), Path, main(), print_usage(), backup_dir_for() (+41 more)
 
 ### Community 10 - "ac"
 Cohesion: 0.09
 Nodes (3): ac(), am(), au()
 
 ### Community 12 - "validate.py"
-Cohesion: 0.16
-Nodes (22): benchmark_pair(), count_tokens(), main(), print_table(), Path, count_bullets(), extract_code_blocks(), extract_headings() (+14 more)
+Cohesion: 0.06
+Nodes (50): visionConfig, assertExactKeys(), buildPromptSegment(), config, fail(), findProhibitedKey(), getImageDimensions(), normalizeObservation() (+42 more)
 
 ### Community 13 - "chat.js"
 Cohesion: 0.08
-Nodes (25): EMOTION_LABELS_TH, EMOTION_VALUES, { chatLimit, sttLimit }, consolidationWorker, crypto, embeddingService, { EMOTION_VALUES }, express (+17 more)
+Nodes (23): { chatLimit, sttLimit }, consolidationWorker, crypto, embeddingService, { EMOTION_VALUES }, express, fs, gameCommentaryService (+15 more)
 
 ### Community 15 - "validate.py"
 Cohesion: 0.16
-Nodes (22): benchmark_pair(), count_tokens(), main(), print_table(), Path, count_bullets(), extract_code_blocks(), extract_headings() (+14 more)
+Nodes (10): createVisionError(), ERROR_DEFINITIONS, isVisionMode(), normalizeVisionError(), normalizeVisionState(), VISION_MODES, VISION_STATUSES, AdaptiveCaptureController (+2 more)
 
 ### Community 16 - "index.js"
 Cohesion: 0.08
-Nodes (23): app, audioDir, chatRoutes, configRoutes, cors, express, fs, healthRoutes (+15 more)
+Nodes (21): app, audioDir, chatRoutes, configRoutes, cors, express, fs, healthRoutes (+13 more)
 
 ### Community 18 - "live2d.min.js"
-Cohesion: 0.09
-Nodes (6): ai(), ak(), at(), I(), J(), z()
+Cohesion: 0.07
+Nodes (8): ai(), ak(), at(), d(), I(), J(), N(), z()
 
 ### Community 21 - "config.js"
 Cohesion: 0.13
 Nodes (14): apiKeyAuth(), crypto, safeCompare(), apiKeyAuth, { adminAuth }, apiKeyAuth, configService, express (+6 more)
 
 ### Community 22 - "App.jsx"
-Cohesion: 0.18
-Nodes (12): react, App(), AvatarCanvas, ControlPanel, ApiKeyGate(), ChatInput(), formatDuration(), GameBoard() (+4 more)
+Cohesion: 0.26
+Nodes (8): AvatarCanvas, ControlPanel, ApiKeyGate(), GameBoard(), ThemeToggle(), TTSProviderSelector, verifyApiKey(), react
 
 ### Community 23 - "U"
 Cohesion: 0.18
@@ -193,8 +215,8 @@ Cohesion: 0.12
 Nodes (15): @claude-flow/cli, ruflo, author, description, devDependencies, @claude-flow/cli, ruflo, keywords (+7 more)
 
 ### Community 26 - "llm.js"
-Cohesion: 0.14
-Nodes (12): { availableProviders }, configuredProvider, modelByProvider, expensiveLimit, apiKeyAuth, { expensiveLimit }, express, llmManager (+4 more)
+Cohesion: 0.08
+Nodes (20): { availableProviders }, configuredProvider, modelByProvider, expensiveLimit, apiKeyAuth, { expensiveLimit }, express, llmManager (+12 more)
 
 ### Community 27 - "gttsProvider.js"
 Cohesion: 0.13
@@ -205,28 +227,28 @@ Cohesion: 0.14
 Nodes (7): BaseLLMProvider, BaseLLMProvider, { Ollama }, OllamaProvider, assert, BaseLLMProvider, test
 
 ### Community 29 - "api.js"
-Cohesion: 0.26
-Nodes (9): useChat(), api, getChatStatus(), resetChat(), sendGameMove(), sendMessage(), socket, transcribeAudio() (+1 more)
+Cohesion: 0.31
+Nodes (10): react, App(), useUI(), useChat(), getChatStatus(), resetChat(), sendGameMove(), sendMessage() (+2 more)
 
 ### Community 30 - "index.js"
-Cohesion: 0.17
-Nodes (10): { availableProviders }, configuredProvider, configService, { createTTSProvider, availableProviders }, currentProviderInstance, ttsConfig, voiceConversionService, GTTSProvider (+2 more)
+Cohesion: 0.12
+Nodes (12): { availableProviders }, configuredProvider, configService, { createTTSProvider, availableProviders }, currentProviderInstance, ttsConfig, TTSManager, voiceConversionService (+4 more)
 
 ### Community 31 - "index.js"
-Cohesion: 0.18
-Nodes (6): configService, { createLLMProvider, availableProviders }, currentProviderInstance, llmConfig, LLMManager, createLLMProvider()
+Cohesion: 0.07
+Nodes (27): Acceptance Criteria, Approval Record, Approved Stabilization Exception and Completion Gate, Assumptions, Baseline stabilization, Confirmed facts, Confirmed Functional Requirements, Constraints (+19 more)
 
 ### Community 34 - "security.test.js"
 Cohesion: 0.18
 Nodes (6): crypto, errorHandler(), notFound(), requestId(), assert, test
 
 ### Community 35 - "react"
-Cohesion: 0.23
-Nodes (7): AvatarCanvas(), fitModelToCanvas(), ChatWindow(), MessageBubble, EMOTION_OPTIONS, getEmotionEmoji(), react
+Cohesion: 0.16
+Nodes (7): ChatInput(), formatDuration(), ChatWindow(), MessageBubble, AudioRecorder, EMOTION_OPTIONS, getEmotionEmoji()
 
 ### Community 36 - "MemoryTab.jsx"
-Cohesion: 0.29
-Nodes (9): MemoryTab(), SystemStatusTab(), ConfigToggle(), getAuditLog(), getMemoryStats(), getOllamaHealth(), triggerConsolidate(), triggerDecay() (+1 more)
+Cohesion: 0.20
+Nodes (12): MemoryTab(), SystemStatusTab(), TTSConfigTab(), api, getAuditLog(), getMemoryStats(), getOllamaHealth(), socket (+4 more)
 
 ### Community 37 - "gameCommentaryService.js"
 Cohesion: 0.22
@@ -241,12 +263,12 @@ Cohesion: 0.22
 Nodes (3): ErrorBoundary, UIContext, UIProvider()
 
 ### Community 41 - "VoiceConversionTab.jsx"
-Cohesion: 0.35
-Nodes (8): LLMConfigTab(), VoiceConversionTab(), ConfigSlider(), previewTTS(), resetConfigKey(), testLLMProvider(), updateLLMConfig(), updateVoiceConversionConfig()
+Cohesion: 0.28
+Nodes (9): LLMConfigTab(), VoiceConversionTab(), ConfigSlider(), ConfigToggle(), previewTTS(), resetConfigKey(), testLLMProvider(), updateLLMConfig() (+1 more)
 
 ### Community 42 - "TTSProviderContext.jsx"
-Cohesion: 0.27
-Nodes (8): TTSConfigTab(), TTSProviderSelector, TTSProviderContext, TTSProviderContextProvider(), useTTSProvider(), getTTSCurrentProvider(), getTTSProvidersList(), switchTTSProvider()
+Cohesion: 0.43
+Nodes (6): TTSProviderContext, TTSProviderContextProvider(), useTTSProvider(), getTTSCurrentProvider(), getTTSProvidersList(), switchTTSProvider()
 
 ### Community 43 - "securityConfig.js"
 Cohesion: 0.20
@@ -257,12 +279,16 @@ Cohesion: 0.24
 Nodes (4): { query, pool }, { Pool }, DecayWorker, { query, pool }
 
 ### Community 46 - "configService.js"
-Cohesion: 0.22
-Nodes (7): NOT_FOUND, { query }, axios, configService, fs, path, { spawn }
+Cohesion: 0.18
+Nodes (6): axios, configService, fs, path, { spawn }, VoiceConversionService
+
+### Community 47 - "TTSManager"
+Cohesion: 0.08
+Nodes (25): Animation command v1, Approved Product Decisions, Architectural boundaries, Capture metadata v1, Compatibility and Migration, Core Contracts, Current Architecture, Global Recovery Strategy (+17 more)
 
 ### Community 48 - "scheduler.js"
-Cohesion: 0.25
-Nodes (7): configService, consolidationWorker, cron, decayWorker, fs, path, securityConfig
+Cohesion: 0.20
+Nodes (9): startServer(), configService, consolidationWorker, cron, decayWorker, fs, initScheduler(), path (+1 more)
 
 ### Community 49 - "rateLimits.js"
 Cohesion: 0.25
@@ -296,6 +322,10 @@ Nodes (7): ControlPanel(), LLMConfigTab, MemoryTab, SystemStatusTab, TTSConfigTa
 Cohesion: 0.33
 Nodes (6): axios, fs, path, runTest(), voiceConversionService, wait()
 
+### Community 58 - "AudioRecorder"
+Cohesion: 0.09
+Nodes (20): Before / After, Benchmarks, How It Work, <img src="../../docs/assets/dancing-rock.svg" width="20" height="20" alt="rock"/> Caveman (285 tokens), Install, 📄 Original (706 tokens), Part of Caveman, Security (+12 more)
+
 ### Community 59 - "embeddingService.js"
 Cohesion: 0.33
 Nodes (3): EmbeddingService, { Ollama }, ollamaClient
@@ -303,6 +333,10 @@ Nodes (3): EmbeddingService, { Ollama }, ollamaClient
 ### Community 60 - "sttService.js"
 Cohesion: 0.33
 Nodes (4): fs, path, { spawn }, STTService
+
+### Community 61 - "VoiceConversionService"
+Cohesion: 0.09
+Nodes (20): Before / After, Benchmarks, How It Work, <img src="../../docs/assets/dancing-rock.svg" width="20" height="20" alt="rock"/> Caveman (285 tokens), Install, 📄 Original (706 tokens), Part of Caveman, Security (+12 more)
 
 ### Community 63 - "consolidationWorker.js"
 Cohesion: 0.40
@@ -312,25 +346,113 @@ Nodes (4): embeddingService, { Ollama }, ollamaClient, { query, pool }
 Cohesion: 0.50
 Nodes (3): compilerOptions, baseUrl, paths
 
+### Community 71 - "d"
+Cohesion: 0.10
+Nodes (20): Architecture Facts, Avatar flow, Baseline Assessment, Discovery Limitations, Executive Assessment, Findings and Priorities, Live2D Research Notes, P0 — Repair double-encoded Thai in the checkpointed changes (+12 more)
+
+### Community 72 - "N"
+Cohesion: 0.10
+Nodes (20): 3-Tier Model Routing, After Success, Agent Comms (SendMessage-First Coordination), Agent Routing, Agents, Background Workers, Before Any Task, Build & Test (+12 more)
+
+### Community 83 - "AGENTS.md — Synthenia Project"
+Cohesion: 0.12
+Nodes (16): AGENTS.md — Synthenia Project, Backend, 📏 Coding Conventions, 🔐 Control Panel Authentication, Database, 🎭 Emotion System, ⚙️ Environment Variables (backend/.env), Frontend (+8 more)
+
+### Community 84 - "SKILL.md"
+Cohesion: 0.14
+Nodes (12): cavecrew, Example chaining, How to invoke, Model overrides, See also, What it does, Auto-clarity (inherited), Chaining patterns (+4 more)
+
+### Community 85 - "Caveman Help"
+Cohesion: 0.14
+Nodes (12): caveman-help, Example output, How to invoke, See also, What it does, Caveman Help, Configure Default Mode, Deactivate (+4 more)
+
+### Community 86 - "SKILL.md"
+Cohesion: 0.14
+Nodes (12): cavecrew, Example chaining, How to invoke, Model overrides, See also, What it does, Auto-clarity (inherited), Chaining patterns (+4 more)
+
+### Community 87 - "Caveman Help"
+Cohesion: 0.14
+Nodes (12): caveman-help, Example output, How to invoke, See also, What it does, Caveman Help, Configure Default Mode, Deactivate (+4 more)
+
+### Community 88 - "Sol to Luna Handoff — Phase 1"
+Cohesion: 0.17
+Nodes (11): Completion Checklist, Exact Scope, Prohibited Changes, Read First, Required Backend Behavior, Required Constants and Contracts, Required Frontend Behavior, Risks and Assumptions (+3 more)
+
+### Community 89 - "Caveman Compress"
+Cohesion: 0.17
+Nodes (11): Boundaries, Caveman Compress, Compress, Compression Rules, Pattern, Preserve EXACTLY (never modify), Preserve Structure, Process (+3 more)
+
+### Community 90 - "SKILL.md"
+Cohesion: 0.17
+Nodes (10): caveman, Example output, How to invoke, See also, What it does, Auto-Clarity, Boundaries, Intensity (+2 more)
+
+### Community 92 - "Caveman Compress"
+Cohesion: 0.17
+Nodes (11): Boundaries, Caveman Compress, Compress, Compression Rules, Pattern, Preserve EXACTLY (never modify), Preserve Structure, Process (+3 more)
+
+### Community 93 - "SKILL.md"
+Cohesion: 0.17
+Nodes (10): caveman, Example output, How to invoke, See also, What it does, Auto-Clarity, Boundaries, Intensity (+2 more)
+
+### Community 94 - "caveman-commit"
+Cohesion: 0.18
+Nodes (9): caveman-commit, Example output, How to invoke, See also, What it does, Auto-Clarity, Boundaries, Examples (+1 more)
+
+### Community 95 - "caveman-review"
+Cohesion: 0.18
+Nodes (9): caveman-review, Example output, How to invoke, See also, What it does, Auto-Clarity, Boundaries, Examples (+1 more)
+
+### Community 98 - "caveman-commit"
+Cohesion: 0.18
+Nodes (9): caveman-commit, Example output, How to invoke, See also, What it does, Auto-Clarity, Boundaries, Examples (+1 more)
+
+### Community 99 - "caveman-review"
+Cohesion: 0.18
+Nodes (9): caveman-review, Example output, How to invoke, See also, What it does, Auto-Clarity, Boundaries, Examples (+1 more)
+
+### Community 100 - "Luna Blocker Handoff — Phase 1"
+Cohesion: 0.20
+Nodes (9): Attempted Safe Resolutions, Command, Completed Work, Decision or External State Required, Exact Blocker, Files Changed, Incomplete Work, Luna Blocker Handoff — Phase 1 (+1 more)
+
+### Community 102 - "caveman-stats"
+Cohesion: 0.29
+Nodes (5): caveman-stats, Example output, How to invoke, See also, What it does
+
+### Community 103 - "caveman-stats"
+Cohesion: 0.29
+Nodes (5): caveman-stats, Example output, How to invoke, See also, What it does
+
+### Community 104 - "Synthenia Update Log"
+Cohesion: 0.29
+Nodes (6): 2026-07-28 — Discovery and requirements v1, 2026-07-28 — Luna Phase 1 execution blocker, 2026-07-28 — Requirements approval and planning v1, 2026-07-28 — Root coordination and checkpoint, 2026-07-28 — User-authorized Luna retry, Synthenia Update Log
+
+### Community 105 - "Q: Graphify ทำงานถูกต้องไหม และอ่านง่ายขึ้นแค่ไหนเมื่อเทียบกับปกติ"
+Cohesion: 0.40
+Nodes (4): Answer, Outcome, Q: Graphify ทำงานถูกต้องไหม และอ่านง่ายขึ้นแค่ไหนเมื่อเทียบกับปกติ, Source Nodes
+
+### Community 107 - "React + Vite"
+Cohesion: 0.50
+Nodes (3): Expanding the Oxlint configuration, React Compiler, React + Vite
+
 ## Knowledge Gaps
-- **257 isolated node(s):** `name`, `version`, `description`, `main`, `test` (+252 more)
+- **556 isolated node(s):** `name`, `version`, `description`, `main`, `test` (+551 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **28 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **34 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `e()` connect `B` to `ae`, `live2d.min.js`, `App.jsx`, `ControlPanel.jsx`, `api.js`, `AudioAnalyser`?**
-  _High betweenness centrality (0.106) - this node is a cross-community bridge._
+- **Why does `e()` connect `B` to `._$nP`, `react`, `live2d.min.js`, `ControlPanel.jsx`, `api.js`, `AudioAnalyser`?**
+  _High betweenness centrality (0.041) - this node is a cross-community bridge._
 - **Why does `useChat()` connect `api.js` to `B`, `App.jsx`?**
-  _High betweenness centrality (0.070) - this node is a cross-community bridge._
-- **Why does `App()` connect `App.jsx` to `UIContext.jsx`, `api.js`?**
-  _High betweenness centrality (0.040) - this node is a cross-community bridge._
+  _High betweenness centrality (0.021) - this node is a cross-community bridge._
+- **Why does `ae()` connect `ae` to `._$nP`, `live2d.min.js`, `W`?**
+  _High betweenness centrality (0.014) - this node is a cross-community bridge._
 - **What connects `name`, `version`, `description` to the rest of the system?**
-  _257 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _556 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `B` be split into smaller, more focused modules?**
-  _Cohesion score 0.060814383923849816 - nodes in this community are weakly interconnected._
-- **Should `ae` be split into smaller, more focused modules?**
-  _Cohesion score 0.07918552036199095 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.05547785547785548 - nodes in this community are weakly interconnected._
 - **Should `ollamaService.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.06826241134751773 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06352941176470588 - nodes in this community are weakly interconnected._
+- **Should `v` be split into smaller, more focused modules?**
+  _Cohesion score 0.09956709956709957 - nodes in this community are weakly interconnected._

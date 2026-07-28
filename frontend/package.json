@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
+    "test:vision": "node --test test/visionContracts.test.js test/adaptiveCaptureController.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
