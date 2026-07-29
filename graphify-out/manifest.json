@@ -610,8 +610,8 @@
     "semantic_hash": ""
   },
   "backend/src/contracts/vision.js": {
-    "mtime": 1785208877.6281803,
-    "ast_hash": "d6f1a6c980554c05e13bdd9580d042e7",
+    "mtime": 1785305806.224778,
+    "ast_hash": "4c8b3c881180ec6254b99109791c9ad5",
     "semantic_hash": ""
   },
   "backend/src/services/vision/shortTermObservationStore.js": {
@@ -620,18 +620,18 @@
     "semantic_hash": ""
   },
   "backend/src/services/vision/visionCoordinator.js": {
-    "mtime": 1785208669.2724888,
-    "ast_hash": "564a42bda9a2c340bb8dce07d4ba180f",
+    "mtime": 1785303320.5873532,
+    "ast_hash": "04776cc8f610270c885d046826d29b60",
     "semantic_hash": ""
   },
   "backend/test/vision_contract.test.js": {
-    "mtime": 1785208669.282478,
-    "ast_hash": "c48fa1446f874abbbcfdfee308c5027c",
+    "mtime": 1785306026.0184546,
+    "ast_hash": "58cadbb690f220762e3780751cca2792",
     "semantic_hash": ""
   },
   "backend/test/vision_privacy.test.js": {
-    "mtime": 1785208669.288875,
-    "ast_hash": "2db2346eddf92d83c818951795ccd1d1",
+    "mtime": 1785305883.3101013,
+    "ast_hash": "537745f7c3128d268b694ea9728d1840",
     "semantic_hash": ""
   },
   "frontend/src/services/visionContracts.js": {
@@ -640,13 +640,13 @@
     "semantic_hash": ""
   },
   "frontend/src/utils/adaptiveCaptureController.js": {
-    "mtime": 1785208915.1687834,
-    "ast_hash": "8f4d1a68e460ba8276a800d8b4ccf5d7",
+    "mtime": 1785305890.2232141,
+    "ast_hash": "dda1253515b4e394881dbcc46965b05b",
     "semantic_hash": ""
   },
   "frontend/test/adaptiveCaptureController.test.js": {
-    "mtime": 1785208821.2014742,
-    "ast_hash": "a1732790f88bcd7e60847400e400f245",
+    "mtime": 1785306041.8007653,
+    "ast_hash": "dcdf3c9fd68beccb53a2479b4b3fae83",
     "semantic_hash": ""
   },
   "frontend/test/visionContracts.test.js": {
@@ -660,8 +660,8 @@
     "semantic_hash": ""
   },
   ".agent-work/handoffs/luna-cli-result.md": {
-    "mtime": 1785208138.1124701,
-    "ast_hash": "071a22ad5c68441361a1e780ef8f3b48",
+    "mtime": 1785209223.131528,
+    "ast_hash": "89f1dcc44a4392dd506a11c40f314daa",
     "semantic_hash": ""
   },
   ".agent-work/handoffs/sol-to-luna.md": {
@@ -670,8 +670,8 @@
     "semantic_hash": ""
   },
   ".agent-work/implementation-plan.md": {
-    "mtime": 1785207925.0425396,
-    "ast_hash": "f06e21d6849291fa77e1d0a01d6f7964",
+    "mtime": 1785305395.6490178,
+    "ast_hash": "7c32aabf10840a30148786f0d4261aa3",
     "semantic_hash": ""
   },
   ".agent-work/reports/baseline-assessment.md": {
@@ -685,8 +685,8 @@
     "semantic_hash": ""
   },
   ".agent-work/status.md": {
-    "mtime": 1785208250.0557158,
-    "ast_hash": "fb19f7f62ff3cd51d4494f5ea5dea0da",
+    "mtime": 1785305505.065001,
+    "ast_hash": "214fd0cfaae2845ffb6f02df2b80a5de",
     "semantic_hash": ""
   },
   ".agents/AGENTS.md": {
@@ -895,8 +895,8 @@
     "semantic_hash": ""
   },
   "backend/test/fixtures/vision/README.md": {
-    "mtime": 1785208669.280464,
-    "ast_hash": "7db67aa4807f47c0d5afeae20fc4109c",
+    "mtime": 1785303056.398255,
+    "ast_hash": "adb09ab43de5dcb530d6a8da16888725",
     "semantic_hash": ""
   },
   "frontend/README.md": {
@@ -915,8 +915,8 @@
     "semantic_hash": ""
   },
   "update-log.md": {
-    "mtime": 1785208250.0606706,
-    "ast_hash": "0b71cd9da99c7c693bf8c87f6e50a973",
+    "mtime": 1785305505.071484,
+    "ast_hash": "1c1c0482fe4e129f524e0e0e32d4ba78",
     "semantic_hash": ""
   },
   "frontend/public/favicon.svg": {
@@ -937,6 +937,106 @@
   "illyasviel/textures/texture_00.png": {
     "mtime": 1783138318.7436779,
     "ast_hash": "0f190000611e208608ae0b960b899d41",
+    "semantic_hash": ""
+  },
+  ".agent-work/README.md": {
+    "mtime": 1785305505.0669878,
+    "ast_hash": "fbb0015217b0b7e878a5718f0ad1281a",
+    "semantic_hash": ""
+  },
+  ".agent-work/agents/luna-phase-1.md": {
+    "mtime": 1785300605.5281324,
+    "ast_hash": "bc454758f14e69ad8c14751cdb5f199e",
+    "semantic_hash": ""
+  },
+  ".agent-work/agents/sol-discovery-planning.md": {
+    "mtime": 1785300605.5281324,
+    "ast_hash": "b28a0dc7b925c1ad4e7997b59b01375c",
+    "semantic_hash": ""
+  },
+  ".agent-work/agents/sol-remediation-001.md": {
+    "mtime": 1785301740.235382,
+    "ast_hash": "317fc32e28de71a8fd3f0243cb814ac0",
+    "semantic_hash": ""
+  },
+  ".agent-work/agents/terra-audit-001.md": {
+    "mtime": 1785301076.7594287,
+    "ast_hash": "2a30b9b3faea38b8e394ff06680fa114",
+    "semantic_hash": ""
+  },
+  ".agent-work/handoffs/luna-to-terra.md": {
+    "mtime": 1785209102.0821033,
+    "ast_hash": "d8a0364c68f50715f4dcaf2b3ff1fbb3",
+    "semantic_hash": ""
+  },
+  ".agent-work/handoffs/session-handoff.md": {
+    "mtime": 1785209223.1265063,
+    "ast_hash": "ae8a1463097684882f1bdf665a0a3eb1",
+    "semantic_hash": ""
+  },
+  ".agent-work/handoffs/sol-to-luna-remediation-001.md": {
+    "mtime": 1785301740.235382,
+    "ast_hash": "3fc918b7033a0d52794281f76941bce7",
+    "semantic_hash": ""
+  },
+  ".agent-work/handoffs/terra-to-sol.md": {
+    "mtime": 1785301076.7584343,
+    "ast_hash": "601766877a13bececb95ce2fcce1b8fc",
+    "semantic_hash": ""
+  },
+  ".agent-work/prompts/luna-remediation-001.md": {
+    "mtime": 1785301921.0783334,
+    "ast_hash": "f797675c33f868f2eb1c2ec5b6fc3006",
+    "semantic_hash": ""
+  },
+  ".agent-work/reports/audit-001.md": {
+    "mtime": 1785301094.9914162,
+    "ast_hash": "eb6c861874084e053633bb0871a67ce2",
+    "semantic_hash": ""
+  },
+  "docs/agent-artifacts/README.md": {
+    "mtime": 1785305505.0689905,
+    "ast_hash": "842d191b15fcd6eaa2ffa2b73a79ffd3",
+    "semantic_hash": ""
+  },
+  ".agent-work/agents/luna-remediation-001.md": {
+    "mtime": 1785303611.854314,
+    "ast_hash": "79860eb0e76b8514030e9cf256fbaf8b",
+    "semantic_hash": ""
+  },
+  ".agent-work/agents/sol-remediation-002.md": {
+    "mtime": 1785305418.5845766,
+    "ast_hash": "850a74cba6cc2f55fc13a0b3e7da6ddc",
+    "semantic_hash": ""
+  },
+  ".agent-work/agents/terra-audit-002.md": {
+    "mtime": 1785304341.909669,
+    "ast_hash": "cc280af12122f939bb67c78624474513",
+    "semantic_hash": ""
+  },
+  ".agent-work/handoffs/luna-to-terra-remediation-001.md": {
+    "mtime": 1785303563.1801443,
+    "ast_hash": "ed98b0821e550fd654966a0d8405603a",
+    "semantic_hash": ""
+  },
+  ".agent-work/handoffs/sol-to-luna-remediation-002.md": {
+    "mtime": 1785305395.6490178,
+    "ast_hash": "089e64dcd1b3f16ef9cde10da3c3c80c",
+    "semantic_hash": ""
+  },
+  ".agent-work/handoffs/terra-to-sol-002.md": {
+    "mtime": 1785304341.9036736,
+    "ast_hash": "3f44456070144023d22c9bd142987187",
+    "semantic_hash": ""
+  },
+  ".agent-work/prompts/luna-remediation-002.md": {
+    "mtime": 1785305505.0726495,
+    "ast_hash": "7e462f84b46a46ac31a5045efb540266",
+    "semantic_hash": ""
+  },
+  ".agent-work/reports/audit-002.md": {
+    "mtime": 1785304341.90168,
+    "ast_hash": "1b60861ec9e00e1dcefbacd13dccefc5",
     "semantic_hash": ""
   }
 }

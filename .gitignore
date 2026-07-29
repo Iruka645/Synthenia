@@ -51,7 +51,9 @@ Thumbs.db
 ehthumbs.db
 
 # Project plans and documentations
-docs/
+docs/*
+!docs/agent-artifacts/
+!docs/agent-artifacts/**
 
 # Logs
 backend/logs/*
@@ -65,4 +67,3 @@ backend/logs/*
 .ruflo/*
 .mcp.json
 ruflo.config.json
-

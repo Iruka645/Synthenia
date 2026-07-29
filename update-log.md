@@ -73,3 +73,75 @@
 - Transitioned lifecycle state to `HANDOFF_REQUIRED`; Phase 1 remains implemented but unaudited.
 - Created `.agent-work/handoffs/session-handoff.md` with completed scope, validation evidence, limitations, authorization boundary, and the exact resume order.
 - Did not start Phase 2, invoke Ollama, capture a screen, create Syn artwork, modify Live2D assets, or perform remediation.
+
+## 2026-07-29 — Lifecycle resumed and artifact registry added
+
+- Resumed from `.agent-work/handoffs/session-handoff.md` at the Phase 1
+  independent-audit gate.
+- Refreshed Graphify lessons and queried the Phase 1 implementation using only
+  exact graph vocabulary: `vision`, `privacy`, `capture`, `contract`,
+  `coordinator`, `observation`, `adaptive`, `screen`, `image`, `store`,
+  `abort`, and `test`.
+- Confirmed `docs/` is a legacy ignored documentation tree. Opened only
+  `docs/agent-artifacts/` for Git tracking and added a human-facing index.
+- Established `.agent-work/` as the authoritative artifact registry. Every
+  delegated agent must now produce a per-task role record plus its
+  role-specific report or handoff.
+- Added retrospective role records for Sol discovery/planning and Luna Phase 1
+  implementation.
+- Transitioned lifecycle state from `HANDOFF_REQUIRED` to `AUDIT` for Terra
+  audit cycle 1.
+- Terra independently validated the backend and frontend suites and returned
+  `CHANGES_REQUIRED`: two High findings (single-flight drain behavior and
+  malformed image-container acceptance) plus two Medium findings (mid-flight
+  frontend session invalidation and completion-time capture freshness).
+- Recorded the complete findings in `.agent-work/reports/audit-001.md`, the
+  Terra-to-Sol handoff, and Terra's per-task role record.
+- Transitioned to remediation planning. All four findings fit approved
+  Requirements v1 and Plan v1; no new product decision is required.
+- Sol classified AUD-001 through AUD-004 as accepted and in scope, appended
+  bounded Remediation Phase R1 to Plan v1, and produced its Luna handoff and
+  per-task role record. No new user authority was required.
+- Luna implemented R1 only in the allowed contracts, coordinator, controller,
+  fixtures, and focused tests. It added exclusive drain ownership,
+  dependency-free complete-container validation, generation-owned cleanup, and
+  admission-only capture freshness.
+- Luna validation passed: backend 41/41, frontend vision 12/12, frontend lint
+  with the same nine pre-existing warnings, production build with the same
+  Pixi chunk warning, `git diff --check`, and `graphify update .`.
+- Removed temporary CLI stdout/stderr monitoring logs after saving the durable
+  Luna role record and Luna-to-Terra handoff. The reusable Luna input prompt
+  remains under `.agent-work/prompts/` for reproducibility.
+- Transitioned to Terra re-audit cycle 2. Luna did not self-certify closure.
+- Terra audit 002 closed AUD-001 (exclusive drain ownership) and AUD-004
+  (admission/completion timing), but returned `CHANGES_REQUIRED` with two High
+  and one Medium finding.
+- AUD-002 remains open for PNG critical-chunk ordering and JPEG post-scan
+  framing. AUD-003 remains open for manual work hidden during an awaited
+  boundary. New AUD-005 identifies raw analyzer errors escaping the
+  controller's public rejection channel after state sanitization.
+- All Audit 002 corrections remain within approved R1 files and require no new
+  product authority. Transitioned to remediation cycle 2 planning.
+- Sol accepted AUD-002, AUD-003, and AUD-005 as in-scope corrections, retained
+  closed AUD-001/AUD-004 unchanged, appended Remediation Phase R2 to Plan v1,
+  and produced its durable role record and Luna handoff.
+- R2 limits implementation to five existing parser/controller test files, adds
+  no fixture/dependency, and requires in-memory mutation tests plus full closed
+  finding retention.
+- Luna implemented R2 in only the five authorized parser/controller test
+  paths. No coordinator/timing, fixture, dependency, route, browser, model,
+  persistence, Live2D, or machine change was made.
+- Luna validation passed: backend focused 24/24, backend full 44/44, frontend
+  vision 14/14, lint with nine baseline warnings, build with the baseline Pixi
+  chunk warning, diff check, and generated Graphify update.
+- Removed temporary CLI monitoring logs after saving the Luna R2 handoff and
+  durable role record. Transitioned to final allowed audit cycle 3; Luna did
+  not self-certify closure.
+- Terra Audit 003 independently closed AUD-001 through AUD-005 and reproduced
+  all retained validation successfully.
+- Audit 003 found new High AUD-006: the PNG gate accepts a CRC-valid ancillary
+  chunk between two IDAT chunks, violating the consecutive-IDAT structural
+  requirement and invoking the analyzer.
+- Transitioned lifecycle state to `USER_DECISION_REQUIRED` because the maximum
+  three remediation audits were used. A narrow fourth cycle requires explicit
+  user authorization.

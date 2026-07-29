@@ -12,6 +12,15 @@ function defaultStreamState() {
   return { ended: false, disconnected: false, error: false }
 }
 
+function once(callback) {
+  let called = false
+  return (...args) => {
+    if (called) return
+    called = true
+    callback(...args)
+  }
+}
+
 export class AdaptiveCaptureController {
   constructor({
     capture,
@@ -47,10 +56,11 @@ export class AdaptiveCaptureController {
     this.maxDelayMs = maxDelayMs
     this.active = false
     this.inFlight = false
+    this.generation = 0
+    this.runSequence = 0
     this.timer = null
-    this.stream = null
-    this.currentFrame = null
-    this.controller = null
+    this.session = null
+    this.activeRun = null
     this.stateValue = normalizeVisionState({ status: 'idle', active: false, inFlight: false })
   }
 
@@ -65,66 +75,89 @@ export class AdaptiveCaptureController {
   }
 
   clearTimer() {
-    if (this.timer !== null) {
-      this.cancelSchedule(this.timer)
-      this.timer = null
-    }
+    const record = this.timer
+    if (!record) return
+    this.timer = null
+    record.canceled = true
+    if (record.handle !== null) this.cancelSchedule(record.handle)
   }
 
-  abortCurrentWork() {
-    if (this.controller && !this.controller.signal.aborted) this.controller.abort()
-    this.controller = null
+  createSession(stream, generation) {
+    const releaseStreamOnce = once(() => this.releaseStream(stream))
+    return { stream, generation, releaseStreamOnce }
   }
 
-  releaseCurrentFrame() {
-    if (this.currentFrame !== null) this.releaseFrame(this.currentFrame)
-    this.currentFrame = null
-  }
-
-  releaseCurrentStream() {
-    if (this.stream !== null) this.releaseStream(this.stream)
-    this.stream = null
-  }
-
-  cleanup(status, errorCode = null) {
-    this.active = false
-    this.clearTimer()
-    this.abortCurrentWork()
-    this.releaseCurrentFrame()
-    this.releaseCurrentStream()
-    this.emit({ status, active: false, inFlight: this.inFlight, errorCode, outcome: errorCode ?? status })
-  }
-
-  sessionIssue() {
+  sessionIssue(stream) {
     if (!this.readVisibility()) return { status: 'hidden', code: 'VISION_HIDDEN' }
-    const streamState = this.readStreamState(this.stream) || {}
+    const streamState = this.readStreamState(stream) || {}
     if (streamState.ended) return { status: 'ended', code: 'VISION_STREAM_ENDED' }
     if (streamState.disconnected || streamState.connected === false) return { status: 'disconnected', code: 'VISION_DISCONNECTED' }
     if (streamState.error) return { status: 'error', code: 'VISION_ANALYSIS_FAILED' }
     return null
   }
 
+  isCurrentRun(run) {
+    return this.activeRun === run && run.generation === this.generation && !run.invalidated && !run.signal.aborted
+  }
+
+  invalidateGeneration(status, errorCode = null) {
+    const oldGeneration = this.generation
+    this.generation += 1
+    this.active = false
+    this.clearTimer()
+
+    const run = this.activeRun
+    if (run && run.generation === oldGeneration) {
+      run.invalidated = true
+      run.abortOnce()
+      run.releaseFrameOnce()
+    }
+    if (this.session && this.session.generation === oldGeneration) this.session.releaseStreamOnce()
+    this.session = null
+
+    this.emit({
+      status,
+      active: false,
+      inFlight: this.inFlight,
+      outcome: errorCode ?? status,
+      errorCode
+    })
+  }
+
   scheduleNext(delayMs) {
-    if (!this.active) return
+    if (!this.active || !this.session) return
+    const generation = this.generation
     this.clearTimer()
     this.emit({ status: 'active', mode: 'periodic', delayMs, active: true, inFlight: false, outcome: 'scheduled', errorCode: null })
-    this.timer = this.schedule(() => {
-      this.timer = null
+    const record = { generation, handle: null, canceled: false }
+    const callback = () => {
+      if (this.timer === record) this.timer = null
+      if (record.canceled || generation !== this.generation || !this.active || !this.session || this.session.generation !== generation) return
       void this.runPeriodic()
-    }, delayMs)
+    }
+    record.handle = this.schedule(callback, delayMs)
+    if (record.canceled) this.cancelSchedule(record.handle)
+    else this.timer = record
   }
 
   startPeriodic(stream) {
     if (!stream) throw createVisionError('VISION_STREAM_REQUIRED')
+    if (this.inFlight) {
+      this.emit({ status: 'busy', mode: 'periodic', active: this.active, inFlight: true, outcome: 'busy', errorCode: 'VISION_BUSY' })
+      return this.state()
+    }
+
     this.clearTimer()
-    this.abortCurrentWork()
-    this.releaseCurrentStream()
-    this.stream = stream
+    if (this.session) this.session.releaseStreamOnce()
+    this.session = null
+    this.generation += 1
+    const generation = this.generation
+    this.session = this.createSession(stream, generation)
     this.active = true
     this.emit({ status: 'active', mode: 'periodic', active: true, inFlight: false, delayMs: 0, outcome: 'started', errorCode: null })
-    const issue = this.sessionIssue()
+    const issue = this.sessionIssue(stream)
     if (issue) {
-      this.cleanup(issue.status, issue.code)
+      this.invalidateGeneration(issue.status, issue.code)
       return this.state()
     }
     this.scheduleNext(0)
@@ -132,15 +165,15 @@ export class AdaptiveCaptureController {
   }
 
   async runPeriodic() {
-    if (!this.active) return { ok: false, code: 'VISION_STOPPED' }
-    const issue = this.sessionIssue()
-    if (issue) {
-      this.cleanup(issue.status, issue.code)
-      return { ok: false, code: issue.code }
-    }
+    if (!this.active || !this.session) return { ok: false, code: 'VISION_STOPPED' }
     if (this.inFlight) {
       this.emit({ status: 'busy', mode: 'periodic', active: true, inFlight: true, outcome: 'busy', errorCode: 'VISION_BUSY' })
       return { ok: false, code: 'VISION_BUSY' }
+    }
+    const issue = this.sessionIssue(this.session.stream)
+    if (issue) {
+      this.invalidateGeneration(issue.status, issue.code)
+      return { ok: false, code: issue.code }
     }
     return this.execute('periodic', true)
   }
@@ -151,9 +184,9 @@ export class AdaptiveCaptureController {
       return { ok: false, code: 'VISION_BUSY' }
     }
     if (this.active) {
-      const issue = this.sessionIssue()
+      const issue = this.sessionIssue(this.session.stream)
       if (issue) {
-        this.cleanup(issue.status, issue.code)
+        this.invalidateGeneration(issue.status, issue.code)
         return { ok: false, code: issue.code }
       }
       this.clearTimer()
@@ -161,37 +194,98 @@ export class AdaptiveCaptureController {
     return this.execute('manual', this.active)
   }
 
+  makeRun(mode, reschedulePeriodic) {
+    const controller = this.createAbortController()
+    if (!controller || !controller.signal || typeof controller.abort !== 'function') throw createVisionError('VISION_ABORT_UNAVAILABLE')
+    const session = this.session
+    const run = {
+      id: ++this.runSequence,
+      generation: this.generation,
+      mode,
+      reschedulePeriodic,
+      session,
+      stream: session?.stream ?? null,
+      controller,
+      signal: controller.signal,
+      frame: null,
+      frameOwned: false,
+      invalidated: false,
+      scheduled: false,
+      abortOnce: once(() => controller.abort()),
+      releaseFrameOnce: null
+    }
+    let frameReleased = false
+    run.releaseFrameOnce = () => {
+      if (frameReleased || !run.frameOwned) return
+      frameReleased = true
+      this.releaseFrame(run.frame)
+      run.frame = null
+    }
+    return run
+  }
+
+  ensureRunValid(run) {
+    if (!this.isCurrentRun(run)) throw createVisionError('VISION_ABORTED')
+    if (!this.readVisibility()) {
+      this.invalidateGeneration('hidden', 'VISION_HIDDEN')
+      throw createVisionError('VISION_HIDDEN')
+    }
+    if (run.stream) {
+      const streamState = this.readStreamState(run.stream) || {}
+      let streamIssue = null
+      if (streamState.ended) streamIssue = { status: 'ended', code: 'VISION_STREAM_ENDED' }
+      else if (streamState.disconnected || streamState.connected === false) streamIssue = { status: 'disconnected', code: 'VISION_DISCONNECTED' }
+      else if (streamState.error) streamIssue = { status: 'error', code: 'VISION_ANALYSIS_FAILED' }
+      if (streamIssue) {
+        this.invalidateGeneration(streamIssue.status, streamIssue.code)
+        throw createVisionError(streamIssue.code)
+      }
+    }
+  }
+
   async execute(mode, reschedulePeriodic) {
+    const run = this.makeRun(mode, reschedulePeriodic)
+    this.activeRun = run
     this.inFlight = true
     const startedAt = this.clock()
-    const stream = this.stream
-    this.controller = this.createAbortController()
-    const signal = this.controller.signal
     this.emit({ status: 'analyzing', mode, active: this.active, inFlight: true, outcome: 'started', errorCode: null })
     try {
-      this.currentFrame = await this.capture({ mode, stream, signal })
-      const frame = this.currentFrame
-      const result = await this.analyze(frame, { mode, signal })
-      if (signal.aborted) throw createVisionError('VISION_ABORTED')
-      if (this.active) {
+      this.ensureRunValid(run)
+      const frame = await this.capture({ mode, stream: run.stream, signal: run.signal })
+      run.frame = frame
+      run.frameOwned = true
+      this.ensureRunValid(run)
+      const result = await this.analyze(frame, { mode, signal: run.signal })
+      this.ensureRunValid(run)
+      if (this.active && run.generation === this.generation) {
         const status = result?.degraded ? 'degraded' : 'active'
         this.emit({ status, mode, active: true, inFlight: false, outcome: 'completed', errorCode: null })
-      } else this.emit({ status: 'idle', mode: null, active: false, inFlight: false, outcome: 'completed', errorCode: null })
+      } else if (run.generation === this.generation) {
+        this.emit({ status: 'idle', mode: null, active: false, inFlight: false, outcome: 'completed', errorCode: null })
+      }
       return result
     } catch (error) {
-      if (this.active) this.cleanup('error', normalizeVisionError(error).code)
-      else if (this.stateValue.status !== 'stopped' && this.stateValue.status !== 'hidden' && this.stateValue.status !== 'ended' && this.stateValue.status !== 'disconnected') {
-        this.emit({ status: 'error', active: false, inFlight: true, outcome: 'error', errorCode: normalizeVisionError(error).code })
+      const normalized = normalizeVisionError(error)
+      const current = this.isCurrentRun(run)
+      if (current) {
+        this.invalidateGeneration('error', normalized.code)
       }
-      if (!this.active && signal.aborted) throw error
-      throw error
+      throw createVisionError(normalized.code)
     } finally {
       const elapsedMs = Math.max(0, Math.round(this.clock() - startedAt))
-      this.releaseCurrentFrame()
-      this.inFlight = false
-      this.controller = null
-      if (this.stateValue.inFlight) this.emit({ ...this.stateValue, inFlight: false })
-      if (this.active && reschedulePeriodic) {
+      const canReschedule = this.activeRun === run
+        && run.generation === this.generation
+        && !run.invalidated
+        && !run.signal.aborted
+        && this.active
+      run.releaseFrameOnce()
+      if (this.activeRun === run) {
+        this.activeRun = null
+        this.inFlight = false
+        if (run.invalidated) this.emit({ inFlight: false })
+      }
+      if (canReschedule && reschedulePeriodic && !run.scheduled) {
+        run.scheduled = true
         const delayMs = Math.min(this.maxDelayMs, Math.max(this.baseDelayMs, Math.ceil(elapsedMs * this.adaptiveFactor)))
         this.scheduleNext(delayMs)
       }
@@ -199,11 +293,12 @@ export class AdaptiveCaptureController {
   }
 
   stop() {
-    if (!this.active && this.timer === null && this.stream === null && !this.inFlight) {
-      this.emit({ status: 'stopped', active: false, inFlight: false, outcome: 'stopped', errorCode: null })
+    const hasCurrentRun = this.activeRun && this.activeRun.generation === this.generation
+    if (this.active || this.timer || this.session || hasCurrentRun) {
+      this.invalidateGeneration('stopped')
       return this.state()
     }
-    this.cleanup('stopped')
+    this.emit({ status: 'stopped', active: false, inFlight: this.inFlight, outcome: 'stopped', errorCode: null })
     return this.state()
   }
 }

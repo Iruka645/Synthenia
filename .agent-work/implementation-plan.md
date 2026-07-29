@@ -459,3 +459,498 @@ Renewed approval is required before:
 ## Plan Completion Criteria
 
 The plan is complete when each authorized phase is independently implemented, validated, handed off, and audited. The product lifecycle is complete only after the deferred Critical/High dependency findings are accepted through an allowed lifecycle disposition or fixed, with no Critical/High finding remaining, and all required model/art gates are satisfied.
+
+<!-- BEGIN Remediation Phase R1 — Audit 001 -->
+
+## Remediation Phase R1 — Audit 001
+
+- Remediation identifier: R1
+- Audit input: `.agent-work/reports/audit-001.md`
+- Audit disposition: `CHANGES_REQUIRED`
+- Requirements version: 1 (approved; unchanged)
+- Plan version: 1 (preserved; this appended remediation phase does not silently revise or supersede it)
+- Status: ready for Luna remediation
+- Dependencies: completed Phase 1 implementation and Audit 001
+- Scope boundary: correct only the four accepted Audit 001 findings inside Phase 1 contracts, coordinator, controller, fixtures, and focused tests
+
+### Finding classification
+
+| Finding | Classification | Basis | Authority |
+| --- | --- | --- | --- |
+| AUD-001 | Accepted, in scope | Reproduced one-flight violation conflicts with R2.4/R2.7 and Phase 1's one-analyzer contract. | Existing Requirements v1 and Plan v1 are sufficient. |
+| AUD-002 | Accepted, in scope | Reproduced truncated/inconsistent containers conflict with R2.7's malformed-input fail-closed boundary. | Existing Requirements v1 and Plan v1 are sufficient; no dependency is authorized. |
+| AUD-003 | Accepted, in scope | Reproduced mid-flight lifecycle escape conflicts with R2.8 and Phase 1 cleanup/no-reschedule behavior. | Existing Requirements v1 and Plan v1 are sufficient. |
+| AUD-004 | Accepted, in scope | Reproduced completion-time freshness failure conflicts with the approved 8-minute analysis timeout and 120-second observation TTL. | Existing Requirements v1 and Plan v1 are sufficient. |
+
+No finding is invalid, a duplicate, or dependent on new user authority. R1 changes internal enforcement and tests only; it adds no route, browser permission, provider/model call, persistence, dependency, or public product capability.
+
+### Objective and correction order
+
+Restore the Phase 1 privacy/resource invariants without expanding its architecture. Implement in this order:
+
+1. AUD-001 coordinator flight/drain state and AUD-004 timing separation, because both affect coordinator ownership and completion.
+2. AUD-002 bounded container validators and deterministic valid/malformed fixtures.
+3. AUD-003 controller generation ownership and post-await cleanup.
+4. Focused regression tests, then the full Phase 1/backend/frontend validation and independent re-audit.
+
+### Exact implementation scope
+
+Application/test files that R1 may modify:
+
+- `backend/src/contracts/vision.js`
+- `backend/src/services/vision/visionCoordinator.js`
+- `backend/test/vision_contract.test.js`
+- `backend/test/vision_privacy.test.js`
+- `backend/test/fixtures/vision/README.md`
+- `frontend/src/utils/adaptiveCaptureController.js`
+- `frontend/test/adaptiveCaptureController.test.js`
+
+R1 may create only these additional fixture files as needed:
+
+- `backend/test/fixtures/vision/tiny-jpeg.base64`
+- `backend/test/fixtures/vision/tiny-webp.base64`
+
+The existing `tiny-png.base64` remains the valid PNG fixture. The remediation must not modify config values, client public contracts, package manifests, dependencies, lockfiles, routes, application integration, persistence, model/provider adapters, or Live2D assets.
+
+### AUD-001 algorithm — prompt outcome with an exclusive drain state
+
+Replace the Boolean-only ownership model with one private active-flight record and these states:
+
+```text
+IDLE
+  admit valid request -> RUNNING
+
+RUNNING
+  analyzer settles and public processing finishes -> IDLE
+  timeout/external abort wins -> DRAINING + reject caller promptly
+
+DRAINING
+  reject every new request as VISION_BUSY
+  underlying analyzer settles/rejects -> discard late value/error -> IDLE
+```
+
+The flight record owns a unique identity/generation, normalized immutable metadata, the frame reference, its abort controller, timeout/listener handles, provider-settled flag, public-outcome flag, and a single idempotent release function.
+
+Required transition rules:
+
+1. Validate the request before invoking the analyzer. If another `RUNNING` or `DRAINING` flight exists, return `VISION_BUSY`; never enqueue.
+2. For an already-aborted external signal, return `VISION_ABORTED` without invoking the analyzer.
+3. Start exactly one provider promise and immediately attach both fulfillment and rejection settlement handlers so a discarded late rejection cannot become unhandled.
+4. Timeout or external abort must synchronously mark the flight ineligible for success, transition it to `DRAINING`, abort the provider signal, clear the public timer/listener, emit exactly one metadata-only timeout/abort outcome, and reject the public `analyze()` promise without awaiting the provider.
+5. The `DRAINING` record and its frame reference remain exclusive until the actual provider promise settles, even if the provider ignores `AbortSignal` indefinitely. No second analyzer may start during this period.
+6. A late fulfillment or rejection may only mark the provider settled and call the idempotent release function. It must not normalize/store a result, emit a second completion/error log, expose provider error text, or mutate a newer flight.
+7. On the normal path, re-check that the same flight is still success-eligible after the provider await and before normalization/storage. Retain the lock through normalization, store, sanitized log, and public completion; then release exactly once.
+8. Clear timeout/listener/controller references through identity-checked, idempotent cleanup. Only the owner record may clear the coordinator's active-flight slot.
+
+This intentionally chooses bounded concurrency over immediate re-admission: an abort-ignoring analyzer can hold the drain lock indefinitely, but cannot multiply image processing or retained frames. Adapter-level forced termination remains a later provider concern.
+
+### AUD-002 algorithm — dependency-free, bounded, fail-closed containers
+
+Keep the existing byte and declared-dimension checks before analyzer invocation. Each parser must use one forward cursor, overflow-safe remaining-length comparisons, and at most linear work over the already bounded 1,500,000-byte input. Do not decompress pixels, allocate proportional copies, recurse by chunk, or add a dependency.
+
+#### PNG policy
+
+1. Require the exact 8-byte PNG signature.
+2. Walk every chunk as `length(4 BE) + type(4) + data(length) + CRC(4)`; reject a truncated header/data/CRC or a declared length beyond remaining bytes.
+3. Require `IHDR` first and exactly once with length 13, positive dimensions, compression method 0, filter method 0, and interlace 0 or 1. The only accepted bit-depth/color-type pairs are type 0 with depth 1/2/4/8/16, type 2 with 8/16, type 3 with 1/2/4/8, type 4 with 8/16, and type 6 with 8/16.
+4. Compute standard PNG CRC-32 over each chunk's type and data with a small local table/helper and compare it unsigned to the stored CRC. The CRC policy is all chunks, including `IHDR`, `IDAT`, ancillary chunks, and `IEND`.
+5. Require at least one `IDAT`; require one zero-length `IEND` with valid CRC after image data; reject duplicate/out-of-order terminal chunks and any byte after `IEND`.
+6. Unknown critical chunks fail closed. Ancillary chunks are accepted only when structurally bounded and CRC-valid. Pixel decompression is deliberately out of scope.
+
+#### JPEG completion policy
+
+1. Require `SOI` at offset 0, one supported single-frame SOF (`C0/C1/C2/C3/C5/C6/C7/C9/CA/CB/CD/CE/CF`) carrying positive dimensions, at least one valid `SOS`, and an `EOI` that terminates the buffer exactly; trailing bytes or concatenated images fail.
+2. Outside entropy-coded scan data, require marker framing and validate every variable segment length (`>=2` and fully inside the buffer). For SOF require `length === 8 + 3 * componentCount`; for SOS require `length === 6 + 2 * scanComponentCount`; validate nonzero component counts and bounds before reading fields.
+3. Inside scan data, walk once and distinguish stuffed `FF 00`, restart markers `FF D0..D7`, fill `FF` bytes, later legal segment markers for multi-scan/progressive data, and terminal `FF D9`. Outside scan data, `SOI`, restart, and temporary standalone markers are rejected after the initial `SOI`.
+4. `EOI` before a valid SOF/SOS, missing `EOI`, segment overrun, truncated marker, duplicate/inconsistent frame header, or unsupported standalone-marker placement fails closed.
+5. The parser verifies marker/segment/scan completion but does not claim entropy or pixel decoding.
+
+#### WebP RIFF/chunk-padding policy
+
+1. Require `RIFF`, `WEBP`, and `bytes.length === readUInt32LE(4) + 8`; reject underflow, overflow, size mismatch, or trailing bytes.
+2. Walk chunks as `fourCC + uint32LE length + data + optional pad`. Every chunk must end within the RIFF boundary. An odd-length chunk must have one physical zero padding byte included inside the RIFF size; even-length chunks have no pad.
+3. Accept a bounded still-image layout only: one primary `VP8 ` or `VP8L` payload, optionally preceded by one valid 10-byte `VP8X` header. Reject animation flags/chunks, duplicate primary/header chunks, missing primary image data, or inconsistent primary/extended dimensions.
+4. Validate the `VP8 ` key-frame bit plus `9D 01 2A` signature and 14-bit dimensions; validate the `VP8L` `2F` signature, zero version bits, and 14-bit dimensions; for `VP8X`, require `(flags & 0xC1) === 0`, reject animation bit `0x02`, require its three reserved bytes to be zero, and read its two 24-bit stored-minus-one dimensions.
+5. Require the final padded chunk boundary to equal the declared RIFF boundary exactly. Unknown non-animation chunks are accepted only if structurally bounded and compatible with the single still-image policy.
+
+Fixture policy:
+
+- Keep the existing deterministic 1x1 PNG and add deterministic, genuinely complete 1x1 JPEG and WebP base64 fixtures containing no user/screen data.
+- Document format, dimensions, provenance/generation method, and a stable SHA-256 for each fixture in the fixture README.
+- Every strict prefix truncation of each valid fixture must reject. Format-specific length, CRC/terminal, marker-completion, RIFF-size, and padding mutations must reject before analyzer invocation.
+
+### AUD-003 algorithm — generation-owned controller cleanup
+
+Give each capture session and each execution a monotonically increasing generation plus an identity-owned resource record. Frames, streams, abort controllers, and schedules must be released through idempotent `releaseOnce` helpers tied to that record, never through an unqualified late completion.
+
+Required behavior:
+
+1. A scheduled callback captures its session generation and becomes a no-op if that generation is no longer current.
+2. Each execution captures `{generation, run identity, stream, controller, frame}` locally. Only the current run in the current generation may emit success/error state, clear the shared run slot, or schedule again.
+3. Check session validity before work, immediately after `await capture`, immediately after `await analyze`, and immediately before success/rescheduling. At each post-await boundary also check generation identity and `signal.aborted`.
+4. Hidden, ended, disconnected, or stream-error state terminates the owning generation: invalidate it, cancel the timer, abort once, release its frame and stream once, emit the matching visible terminal state, and prohibit rescheduling.
+5. `stop()` performs the same generation invalidation and exactly-once cleanup. A late frame returned after stop is released once by its stale run but cannot analyze, overwrite `stopped`, release a newer session's resources, or schedule.
+6. Analyzer rejection for the current generation produces the sanitized error state and the same cleanup. A stale run may release only its own resources.
+7. Keep manual and periodic work on one shared in-flight slot. A new start/manual/tick while a run remains unsettled returns busy and never creates a second capture/analyze call or pending queue.
+8. In `finally`, release the run's frame once. Clear `inFlight` and emit its final false value only if the run still owns the slot. Compute and schedule the adaptive delay exactly once only when the same generation remains active and valid.
+
+No DOM/browser listeners are added in R1. The pure controller exposes deterministic behavior through its injected visibility/stream readers; Phase 3 host integration will call the same terminal cleanup from actual lifecycle events.
+
+### AUD-004 algorithm — admission freshness versus completion validation
+
+Capture freshness is an admission rule, not an inference-duration limit:
+
+1. `validateCaptureRequest()` continues to validate ISO syntax, maximum age 300,000 ms, and maximum future skew 30,000 ms exactly once at request admission and returns normalized immutable metadata.
+2. Completion normalization revalidates the admitted metadata's schema/version/enums/dimensions and canonical timestamp syntax without reapplying capture age.
+3. Observation validation parses `capturedAt` without an age check, requires `capturedAt <= observedAt + 30,000 ms`, rejects an `observedAt` more than 30,000 ms ahead of the validation clock, requires `expiresAt === observedAt + 120,000 ms`, requires the observation to be unexpired at validation, and retains `analysisMs` within the configured 480,000 ms bound.
+4. Read the completion clock once. Use that same value for `observedAt`, elapsed-time calculation, TTL creation, validation, and metadata-only completion logging.
+5. A request fresh at admission may complete at six minutes and produce an observation expiring 120 seconds after completion. A request stale/future-skewed at admission still rejects before analyzer invocation. A provider completion with elapsed time `<480,000 ms` remains eligible; elapsed time `>=480,000 ms` returns `VISION_TIMEOUT` with no store even if provider settlement and the timer race at the boundary. If the provider is still unsettled when the timer wins, timeout/drain behavior governs.
+
+The configured 8-minute timeout, 5-minute admission age, 30-second future skew, and 120-second completion-relative TTL remain unchanged.
+
+### Required regression tests
+
+Backend contract/parser tests:
+
+- Valid complete 1x1 PNG/JPEG/WebP fixtures accept with matching MIME and dimensions.
+- Every strict prefix of each valid fixture rejects.
+- PNG rejects corrupt CRC in `IHDR`/image data/`IEND`, missing or nonterminal `IEND`, absent image data, impossible chunk length, unknown critical chunk, and trailing bytes.
+- JPEG rejects missing SOF/SOS/EOI, EOI before a scan, short/overrunning segments, truncated/stuffed marker boundaries, inconsistent frame headers, and bytes after EOI; valid stuffed/restart/multi-scan marker walking remains bounded.
+- WebP rejects zero/short/long RIFF declarations, chunk overrun, missing or nonzero odd padding, missing/duplicate primary payload, invalid `VP8 `/`VP8L`/`VP8X` fields, animation layout, dimension disagreement, and trailing bytes.
+- Existing MIME mismatch, declared-dimension mismatch, encoded-size limit, timestamp, exact-key, prohibited-field, summary, and TTL tests remain passing.
+
+Coordinator tests:
+
+- For timeout and external abort separately, use an abort-ignoring deferred analyzer. The caller rejects promptly; request B is `VISION_BUSY`; analyzer count stays one; the timeout/abort produces one sanitized metadata-only log; late fulfillment and late rejection produce no store write or additional log; only after settlement may request C invoke the analyzer.
+- A pre-aborted external signal does not invoke the analyzer.
+- Invalid containers never invoke the analyzer.
+- A fresh request completed at six minutes stores a valid observation with `expiresAt - observedAt === 120,000`.
+- Admission at the allowed age/future-skew boundaries succeeds; one millisecond beyond each rejects before analysis.
+- A completion at elapsed time `<480,000 ms` remains eligible; elapsed time `>=480,000 ms` returns `VISION_TIMEOUT` without storage. If the provider is still unsettled when the timer wins, the drain stays exclusive until settlement.
+- Existing normal success, provider failure sanitization, one-flight, latest-only store, and payload-free logger assertions remain passing.
+
+Controller tests:
+
+- For each of hidden, ended, disconnected, and stream error, test invalidation during a deferred capture and during a deferred analyze: correct terminal status/code, abort, exactly one frame release when a frame exists, exactly one stream release, no success overwrite, and no new schedule.
+- Test stop during deferred capture and deferred analyze, including abort-ignoring late settlement: `stopped` remains terminal, each owned resource releases exactly once, and no reschedule occurs.
+- Test analyzer rejection cleanup and repeated `stop()` idempotence.
+- Test stale scheduled callbacks and late completions from an invalidated generation cannot mutate or schedule a later generation.
+- Preserve manual/periodic shared-flight, busy/no-queue, manual-off, payload-free state, and exact 5-second/factor/60-second adaptive-delay tests.
+
+All tests use injected clocks, schedulers, signals, and deferred promises. They use no network, browser, model, database, filesystem write, or real-time wait.
+
+### Validation commands and evidence
+
+Luna must run and record:
+
+```text
+cd D:\Synthenia\backend
+npm test
+
+cd D:\Synthenia\frontend
+npm run test:vision
+npm run lint
+npm run build
+
+cd D:\Synthenia
+git diff --check
+graphify update .
+git status --short
+```
+
+Graphify output may change only through the repository-mandated `graphify update .`; it is generated evidence, not an implementation file, and must not be hand edited. Existing frontend lint warnings, large-chunk warning, dependency advisories, mojibake, and unrelated dirty files remain documented baseline rather than R1 scope.
+
+### Constraints, recovery, and stop conditions
+
+- Preserve all unrelated/user-owned changes and all approved Requirements v1/Plan v1 behavior.
+- Add no dependency, lockfile/package/config change, route, browser API, provider/model call, persistence, log payload, machine change, Git commit, or push.
+- Do not broaden image formats or claim full pixel decoding. Structural validation is a pre-inference gate.
+- Do not resolve a drain by force-releasing its lock before provider settlement.
+- If safe structural validation requires a dependency or a scoped file has an unresolvable overlap, stop and write a blocker artifact; do not expand scope.
+- Recovery is limited to reverting the R1 edits/new fixtures and retaining the already-audited Phase 1 baseline. There is no migration or persistent screen data.
+
+### R1 acceptance and re-audit criteria
+
+R1 is ready for Terra re-audit only when:
+
+- all four accepted findings have their specified regression coverage;
+- no second analyzer starts while a timed-out/aborted provider drains, and late settlement has no store/log side effect;
+- PNG/JPEG/WebP valid fixtures accept and all structural/truncation mutations fail before analyzer invocation;
+- every mid-flight terminal path has generation-safe, exactly-once frame/stream cleanup and zero reschedule;
+- a valid six-minute completion receives a completion-relative 120-second TTL while admission and 8-minute timeout boundaries remain enforced;
+- focused and full validation commands pass with baseline warnings accurately reported;
+- Luna's role record and remediation handoff enumerate exact diffs, commands/results, deviations, residual risks, and Terra's audit focus.
+
+Luna does not self-certify closure. Terra must independently return `PASS`, `PASS_WITH_NOTES`, or new `CHANGES_REQUIRED`.
+
+<!-- END Remediation Phase R1 — Audit 001 -->
+
+<!-- BEGIN Remediation Phase R2 — Audit 002 -->
+
+## Remediation Phase R2 — Audit 002
+
+- Remediation identifier: R2
+- Audit input: `.agent-work/reports/audit-002.md`
+- Audit disposition: `CHANGES_REQUIRED`
+- Requirements version: 1 (approved; unchanged)
+- Plan version: 1 (preserved; this append-only remediation phase does not revise or supersede the approved plan or R1)
+- Status: ready for Luna remediation
+- Dependencies: completed R1 implementation and Audit 002
+- Scope boundary: correct only the three accepted open/new Audit 002 findings in the existing PNG/JPEG structural gate and adaptive capture controller; retain the closed coordinator drain and completion-timing behavior
+
+### Finding classification and authority
+
+| Finding | Audit 002 state | Sol classification | Basis | Authority |
+| --- | --- | --- | --- | --- |
+| AUD-001 | CLOSED | Closed; retain without modification | Audit 002 independently verified exclusive `RUNNING`/`DRAINING` ownership, prompt public timeout/abort, and silent late settlement. | Existing Requirements v1/R1 authority remains sufficient; no R2 change is authorized in the coordinator. |
+| AUD-002 | OPEN — High | Accepted, in scope | CRC-valid but illegal PNG `PLTE` placement/color policy and JPEG post-scan framing are reproducible violations of R2.7 and R1's fail-closed container policy. | Existing Requirements v1, Phase 1, and R1 authority are sufficient. |
+| AUD-003 | OPEN — Medium | Accepted, in scope | A manual run without a periodic session omits page-visibility validation after awaits, contrary to R2.8 and R1's every-run post-await rule. | Existing Requirements v1, Phase 1, and R1 authority are sufficient. |
+| AUD-004 | CLOSED | Closed; retain without modification | Audit 002 verified admission-only freshness, completion-relative TTL, and the `<480000`/`>=480000` timeout boundary. | Existing Requirements v1/R1 authority remains sufficient; no R2 change is authorized in timing/coordinator code. |
+| AUD-005 | NEW — High | Accepted, in scope | The controller normalizes state but rethrows the raw capture/analyzer error, exposing provider text through its public promise. This violates R2.6/R2.8 and R1's sanitized-error constraint. | Existing privacy and cleanup requirements are sufficient; no public capability or product decision changes. |
+
+No Audit 002 finding is invalid, duplicated, or dependent on new product authority. R2 changes only stricter enforcement of already approved structural, lifecycle, and privacy contracts. It adds no route, model/provider integration, browser/DOM listener, persistence, dependency, fixture, configuration, or public capability.
+
+### Objective and correction order
+
+Make the three remaining findings ready for a third independent audit without reopening closed R1 behavior:
+
+1. AUD-002: add explicit PNG palette legality and a real JPEG `SCAN -> OUTER` transition.
+2. AUD-003: make page visibility a run-level invariant for manual and periodic work at every async boundary.
+3. AUD-005: make the controller's rejected promise use the same allowlisted typed error channel as its state.
+4. Add focused mutation/table tests, re-run the complete R1 regression matrix, and hand off to Terra.
+
+### Exact R2 implementation scope
+
+Luna may modify only these implementation and test files:
+
+- `backend/src/contracts/vision.js`
+- `backend/test/vision_contract.test.js`
+- `backend/test/vision_privacy.test.js`
+- `frontend/src/utils/adaptiveCaptureController.js`
+- `frontend/test/adaptiveCaptureController.test.js`
+
+Luna must create only these lifecycle artifacts:
+
+- `.agent-work/agents/luna-remediation-002.md`
+- `.agent-work/handoffs/luna-to-terra-remediation-002.md`
+
+No new fixture is authorized. Use the existing deterministic PNG/JPEG/WebP fixtures and construct all R2 variants in memory with small test helpers. `graphify-out/**` may change only as generated output of the repository-required `graphify update .`; it must not be hand edited, cleaned, or normalized.
+
+The following remain prohibited: `visionCoordinator.js`, `visionConfig.js`, the observation store, `visionContracts.js`, fixture files or fixture README, package manifests, dependencies, lockfiles, routes, application integration, browser/DOM APIs, providers/models, persistence/memory/database/Socket.IO paths, Live2D assets, requirements, this plan, audits, existing handoffs/role records, status, update log, documentation indexes, machine state, Git commit/push/history, mojibake repair, dependency remediation, and unrelated/user-owned work.
+
+### AUD-002 algorithm — explicit PNG palette state
+
+Retain the existing exact signature, one-pass bounded chunk walk, overflow-safe remaining-length checks, all-chunk CRC-32, unknown-critical rejection, first/unique 13-byte `IHDR`, supported bit-depth/color-type pairs, at least one `IDAT`, zero-length terminal `IEND`, and no trailing bytes. Add only the missing `PLTE` policy.
+
+The parser records immutable `bitDepth` and `colorType` from the validated `IHDR`, plus `sawPlte` and `sawIdat`:
+
+```text
+on PLTE:
+  require IHDR already accepted
+  reject if sawPlte or sawIdat
+  reject colorType 0 (grayscale) or 4 (grayscale-alpha)
+  require length > 0 and length % 3 == 0
+  entries = length / 3
+  require 1 <= entries <= 256
+  if colorType == 3: require entries <= 2 ** bitDepth
+  sawPlte = true
+
+on first IDAT:
+  if colorType == 3 and !sawPlte: reject
+  sawIdat = true
+
+on IEND:
+  retain existing IDAT/IEND/CRC/terminal checks
+```
+
+Color policy is exact:
+
+- Color type 3 (indexed color): exactly one `PLTE` is required after `IHDR` and before the first `IDAT`; entry count may not exceed the palette capacity implied by bit depth.
+- Color types 0 and 4 (grayscale and grayscale-alpha): `PLTE` is forbidden.
+- Color types 2 and 6 (truecolor and truecolor-alpha): zero or one `PLTE` is permitted only before the first `IDAT`, with 1–256 entries.
+- Every palette entry is exactly three bytes, so length must be a nonzero multiple of three and at most 768 bytes.
+- Duplicate `PLTE`, `PLTE` after any `IDAT`, `PLTE` before `IHDR` through the retained first-chunk rule, and palette-capacity violations fail closed.
+
+Do not decompress pixels, validate palette indices in image data, broaden accepted color/depth pairs, change ancillary-chunk handling, or add a decoder dependency.
+
+### AUD-002 algorithm — explicit JPEG scan/outer framing
+
+Retain the current SOI, supported single-frame SOF, segment-length, component, SOS, stuffing, restart, terminal EOI, no-trailing-data, and bounded forward-walk rules. Change the parser to a two-state machine:
+
+```text
+state OUTER:
+  require the next byte to begin an FF marker
+  read fill FF bytes and one marker
+
+state SCAN:
+  consume entropy bytes
+  treat FF 00 as stuffed data
+  treat FF D0..D7 as restart markers and stay in SCAN
+  on every other marker:
+    consume that marker
+    transition to OUTER before interpreting it
+
+interpret marker:
+  EOI -> accept only with a valid frame, at least one valid SOS,
+         and exact end-of-buffer; EOI is legal whether found from SCAN
+         or as the immediate next OUTER marker after a segment
+  illegal standalone/SOI placement -> reject
+  supported SOF -> apply retained unique-frame validation
+  variable marker -> parse its bounded segment in OUTER state
+  SOS -> validate against the frame, then and only then transition to SCAN
+  APP/DQT/DHT/DRI/COM/other bounded variable segment -> remain OUTER
+```
+
+The marker returned by the scan walker must be interpreted once; do not rewind and rediscover it. After any post-scan APP/DQT/other variable segment, the byte immediately following that segment must begin the next outer marker. Arbitrary bytes, stuffed bytes, restart markers, or entropy-like data in `OUTER` state reject. A later valid `SOS` is the only transition back to `SCAN`.
+
+This keeps valid stuffed bytes, restart markers, and bounded multi-scan framing accepted while rejecting Audit 002's `APP0 + arbitrary bytes + EOI` reproduction. It remains structural validation, not entropy decoding.
+
+### AUD-003 algorithm — visibility belongs to every run
+
+Keep the R1 generation/run ownership, shared one-flight slot, idempotent resource releases, and periodic stream checks. Refine `ensureRunValid(run)` in this exact order:
+
+1. Require that `run` still owns the active slot/generation and its signal is not aborted; otherwise throw typed `VISION_ABORTED`.
+2. Evaluate `readVisibility()` for every run, including a manual run created while periodic mode is off and therefore holding no session/stream.
+3. If hidden, invalidate the owning generation with terminal status `hidden` and code `VISION_HIDDEN`, cancel any owned timer, abort once, release the run's frame once if acquired, release an owned stream once if one exists, and throw typed `VISION_HIDDEN`.
+4. Only when a stream exists, evaluate ended/disconnected/error state and apply the existing matching terminal status/code cleanup.
+
+Call the same validation:
+
+- before capture;
+- immediately after `await capture`, after assigning the returned frame to the run's identity-owned record;
+- immediately after `await analyze`;
+- immediately before success emission/rescheduling, with no intervening await.
+
+For a sessionless manual run that becomes hidden:
+
+- after deferred capture: reject `VISION_HIDDEN`, do not call analyze, release the returned frame exactly once, release no stream, abort once, retain terminal `hidden`, and never schedule;
+- after deferred analyze: reject `VISION_HIDDEN`, release the frame exactly once, release no stream, abort once, retain terminal `hidden`, and never schedule.
+
+When the invalidated run still owns `activeRun`, finalization releases its frame idempotently, clears `activeRun`, sets internal/public `inFlight` false, and may emit only an `inFlight: false` patch that preserves the terminal status, outcome, and error code. It must not overwrite `hidden`, `stopped`, `ended`, `disconnected`, or `error` with success/idle state. A stale run may release only its own frame and may not mutate public state or a later generation.
+
+### AUD-005 algorithm — one sanitized public error channel
+
+The controller must never rethrow an injected capture/analyzer error object. Its catch path applies one allowlist for both public state and rejection:
+
+```text
+catch inputError:
+  normalized = normalizeVisionError(inputError)
+  if run is still current:
+    invalidateGeneration("error", normalized.code)
+  throw createVisionError(normalized.code)
+```
+
+Rules:
+
+- Known lifecycle codes already recognized by `normalizeVisionError` remain unchanged, including `VISION_ABORTED`, `VISION_HIDDEN`, `VISION_STREAM_ENDED`, `VISION_DISCONNECTED`, `VISION_TIMEOUT`, and `VISION_BUSY`.
+- An unknown/raw capture or analyzer failure becomes `VISION_ANALYSIS_FAILED`.
+- The new public error is constructed only from the allowlisted code. Do not copy the input error's message, name, stack, cause, response/body, custom fields, or object identity.
+- Existing lifecycle invalidation state is authoritative: a hidden/stopped/ended/disconnected run must keep that terminal status and must not be overwritten by the catch path.
+- `onStateChange` receives only normalized state fields. Raw failure text must be absent from the rejected error, current state, state-callback history, and any other controller callback/output.
+- Do not change the shared error definitions or public state schema; the existing `normalizeVisionError`, `createVisionError`, and `normalizeVisionState` helpers are sufficient.
+
+### Required R2 regression tests
+
+All new variants are constructed in memory. Test helpers may locate chunks/markers, rebuild an `IHDR` CRC after a color/depth mutation, create a CRC-valid PNG chunk, and splice marker sequences; helpers must not write files.
+
+#### PNG palette matrix
+
+- Retain acceptance of the original valid PNG and all existing CRC, prefix, critical, IDAT/IEND, length, MIME, dimension, and trailing-data tests.
+- Construct a valid indexed-color variant with one pre-`IDAT` palette entry and a recomputed `IHDR` CRC; it accepts.
+- Indexed color with no `PLTE` rejects.
+- Indexed color whose palette entries exceed `2 ** bitDepth` rejects.
+- Color types 0 and 4 with a CRC-valid pre-`IDAT` `PLTE` reject.
+- Color types 2 and 6 accept no palette and accept one valid pre-`IDAT` palette.
+- Zero-length `PLTE`, length not divisible by three, 257 entries, duplicate `PLTE`, and CRC-valid post-`IDAT` `PLTE` reject.
+- At coordinator level, at least the incompatible and post-`IDAT` variants reject before analyzer invocation.
+
+#### JPEG transition matrix
+
+- Retain the existing valid fixture and all prefix, SOF/SOS/EOI, segment-overrun, standalone-marker, duplicate-frame, stuffing/restart, and trailing-data tests.
+- Replace the fixture's terminal EOI with `APP0(length=2) + arbitrary bytes + EOI`; it rejects.
+- A post-scan bounded APP segment followed immediately by EOI accepts structurally.
+- A post-scan bounded APP/DQT-style segment followed immediately by a valid copied SOS re-enters scan; scan data containing `FF 00` and `FF D0..D7` then terminal EOI accepts as a bounded multi-scan structural sequence.
+- The same sequence with one arbitrary byte between the bounded segment and next marker rejects.
+- At coordinator level, the arbitrary-byte post-segment variant rejects before analyzer invocation.
+
+#### Manual visibility matrix
+
+For each boundary `capture|analyze`, run `manualSnapshot()` with periodic mode off, a mutable visibility reader, deferred promises, frame/stream release spies, abort counting, scheduler spies, and state history:
+
+- flip visibility to hidden before resolving the selected boundary;
+- public rejection is a newly constructed typed `VISION_HIDDEN`;
+- analyzer calls are zero for the capture boundary and one for the analyze boundary;
+- the returned/acquired frame releases exactly once;
+- no stream is released because none is owned;
+- abort occurs exactly once;
+- final state is `status: hidden`, `active: false`, `inFlight: false`, `errorCode: VISION_HIDDEN`, with no later success overwrite;
+- zero schedule/reschedule calls occur.
+
+Retain the existing periodic hidden/ended/disconnected/error boundary matrix, stop/idempotence, stale generation, busy/no-queue, manual-off success, state payload, and adaptive-delay tests.
+
+#### Sanitized error matrix
+
+For raw capture rejection and raw analyzer rejection separately:
+
+- inject a unique synthetic sensitive message plus custom `cause`/response-like fields;
+- the public rejection is not the injected object and contains only the fixed typed `VISION_ANALYSIS_FAILED` code/message contract;
+- the synthetic text and custom fields are absent from the rejected error, normalized current state, serialized state-callback history, and controller outputs;
+- final state is terminal `error`, `active: false`, `inFlight: false`, and `errorCode: VISION_ANALYSIS_FAILED`;
+- capture failure releases no unacquired frame; analyzer failure releases its acquired frame exactly once; neither schedules.
+
+Retain explicit checks that stop/late settlement yields typed `VISION_ABORTED`, manual hidden yields typed `VISION_HIDDEN`, and periodic ended/disconnected/error paths preserve their existing codes/statuses without a raw-error overwrite.
+
+#### Closed-finding retention matrix
+
+- AUD-001: existing timeout and external-abort drain tests continue to prove B is busy until A's provider promise settles, late fulfillment/rejection has no store/log side effect, and only then C is admitted.
+- AUD-004: existing exact admission-age/future-skew tests, valid six-minute completion with 120-second completion-relative TTL, and `<480000` success / `>=480000` timeout tests remain passing.
+- Existing PNG/JPEG/WebP strict-prefix, full backend privacy, latest-only store, metadata-only logger, and frontend one-flight/resource-cleanup tests remain passing.
+
+### Validation commands and evidence
+
+Luna must run and record exact counts/outcomes:
+
+```text
+cd D:\Synthenia\backend
+node --test test/vision_contract.test.js test/vision_privacy.test.js
+npm test
+
+cd D:\Synthenia\frontend
+npm run test:vision
+npm run lint
+npm run build
+
+cd D:\Synthenia
+git diff --check
+graphify update .
+git status --short
+```
+
+Also inspect the final name-only diff and verify that implementation/test changes are limited to the five R2 files, lifecycle writes are limited to the two required Luna artifacts, and Graphify changes are generated only by `graphify update .`. Existing nine frontend lint warnings, the Vite large-Pixi-chunk warning, deferred mojibake/dependency risks, unrelated dirty files, and generated Graphify dirtiness must be recorded accurately rather than repaired.
+
+### Constraints, recovery, and stop conditions
+
+- Preserve all unrelated/user-owned work and every approved Requirements v1/Plan v1/R1 behavior.
+- Add no dependency, fixture, package/lockfile/config change, route, provider/model/browser integration, persistence, payload logging, machine change, commit, or push.
+- Do not modify the coordinator/timing implementation for AUD-001/AUD-004. If a closed test fails and correction appears to require those files, stop and write a blocker rather than reopening them.
+- Do not broaden PNG/JPEG claims beyond bounded structural framing or add pixel/entropy decoding.
+- If a safe fix requires `visionContracts.js`, a new fixture/dependency, a file outside the exact allowlist, or a material public-contract change, stop for Sol/user authority.
+- If unrelated changes overlap an allowed file and cannot be preserved, stop with exact evidence; do not reset, clean, or overwrite them.
+- Recovery is limited to reverting the five R2 implementation/test edits while retaining the R1 baseline. There is no migration or persistent screen data.
+
+A blocker artifact must state completed/incomplete work, exact blocker, files touched, commands and sanitized errors, attempted safe resolutions, authority/decision needed, and safest next action.
+
+### R2 acceptance and third-audit criteria
+
+R2 is ready for Terra only when:
+
+- AUD-002's entire PNG palette and JPEG transition matrix passes before analyzer invocation;
+- AUD-003's two sessionless manual hidden-boundary cases have typed rejection, exactly-once cleanup, terminal state with `inFlight: false`, and zero schedule;
+- AUD-005 exposes no injected raw capture/analyzer error through promise, state, callbacks, or controller output;
+- all AUD-001/AUD-004 closure tests and the complete R1/full validation matrix still pass;
+- no file/scope/dependency/fixture expansion occurred;
+- `.agent-work/agents/luna-remediation-002.md` and `.agent-work/handoffs/luna-to-terra-remediation-002.md` enumerate exact diffs, decisions, commands/results, deviations, privacy checks, residual risks, and focused re-audit instructions.
+
+Luna does not close findings. Terra must independently issue Audit 003 as `PASS`, `PASS_WITH_NOTES`, or `CHANGES_REQUIRED`.
+
+<!-- END Remediation Phase R2 — Audit 002 -->

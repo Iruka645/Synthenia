@@ -101,63 +101,297 @@ function normalizeSummary(value) {
   return summary;
 }
 
+const PNG_SIGNATURE = Object.freeze([137, 80, 78, 71, 13, 10, 26, 10]);
+const PNG_CRITICAL_CHUNKS = new Set(['IHDR', 'PLTE', 'IDAT', 'IEND']);
+const PNG_COLOR_DEPTHS = new Map([
+  [0, new Set([1, 2, 4, 8, 16])],
+  [2, new Set([8, 16])],
+  [3, new Set([1, 2, 4, 8])],
+  [4, new Set([8, 16])],
+  [6, new Set([8, 16])],
+]);
+const JPEG_SOF_MARKERS = new Set([
+  0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7,
+  0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
+]);
+const CRC32_TABLE = Object.freeze(Array.from({ length: 256 }, (_, index) => {
+  let value = index;
+  for (let bit = 0; bit < 8; bit += 1) value = (value & 1) ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+  return value >>> 0;
+}));
+
+function readUInt16BE(bytes, offset) {
+  return (bytes[offset] << 8) | bytes[offset + 1];
+}
+
+function readUInt16LE(bytes, offset) {
+  return bytes[offset] | (bytes[offset + 1] << 8);
+}
+
+function readUInt24LE(bytes, offset) {
+  return bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16);
+}
+
+function readUInt32BE(bytes, offset) {
+  return ((bytes[offset] * 0x1000000) + (bytes[offset + 1] << 16) + (bytes[offset + 2] << 8) + bytes[offset + 3]) >>> 0;
+}
+
+function readUInt32LE(bytes, offset) {
+  return (bytes[offset] + (bytes[offset + 1] << 8) + (bytes[offset + 2] << 16) + (bytes[offset + 3] * 0x1000000)) >>> 0;
+}
+
+function asciiAt(bytes, offset, text) {
+  if (offset < 0 || offset + text.length > bytes.length) return false;
+  for (let index = 0; index < text.length; index += 1) {
+    if (bytes[offset + index] !== text.charCodeAt(index)) return false;
+  }
+  return true;
+}
+
+function isPngChunkType(bytes, offset) {
+  for (let index = 0; index < 4; index += 1) {
+    const value = bytes[offset + index];
+    if (!((value >= 0x41 && value <= 0x5a) || (value >= 0x61 && value <= 0x7a))) return false;
+  }
+  return true;
+}
+
+function pngChunkType(bytes, offset) {
+  return String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+}
+
+function pngCrc32(bytes, typeOffset, dataOffset, dataLength) {
+  let crc = 0xffffffff;
+  for (let index = typeOffset; index < typeOffset + 4; index += 1) {
+    crc = CRC32_TABLE[(crc ^ bytes[index]) & 0xff] ^ (crc >>> 8);
+  }
+  for (let index = dataOffset; index < dataOffset + dataLength; index += 1) {
+    crc = CRC32_TABLE[(crc ^ bytes[index]) & 0xff] ^ (crc >>> 8);
+  }
+  return (~crc) >>> 0;
+}
+
 function parsePngDimensions(bytes) {
-  if (bytes.length < 24 || !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return null;
-  if (bytes.toString('ascii', 12, 16) !== 'IHDR') return null;
-  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+  if (bytes.length < PNG_SIGNATURE.length) return null;
+  for (let index = 0; index < PNG_SIGNATURE.length; index += 1) {
+    if (bytes[index] !== PNG_SIGNATURE[index]) return null;
+  }
+
+  let offset = PNG_SIGNATURE.length;
+  let sawIhdr = false;
+  let bitDepth = null;
+  let colorType = null;
+  let sawPlte = false;
+  let sawIdat = false;
+  let sawIend = false;
+  let dimensions = null;
+
+  while (offset < bytes.length) {
+    if (bytes.length - offset < 12) return null;
+    const chunkStart = offset;
+    const chunkLength = readUInt32BE(bytes, chunkStart);
+    const typeOffset = chunkStart + 4;
+    const dataOffset = chunkStart + 8;
+    if (!isPngChunkType(bytes, typeOffset) || bytes.length - dataOffset < 4 || chunkLength > bytes.length - dataOffset - 4) return null;
+    const crcOffset = dataOffset + chunkLength;
+    if (readUInt32BE(bytes, crcOffset) !== pngCrc32(bytes, typeOffset, dataOffset, chunkLength)) return null;
+    const type = pngChunkType(bytes, typeOffset);
+    const critical = (bytes[typeOffset] & 0x20) === 0;
+    if (critical && !PNG_CRITICAL_CHUNKS.has(type)) return null;
+    offset = crcOffset + 4;
+
+    if (!sawIhdr) {
+      if (type !== 'IHDR' || chunkLength !== 13) return null;
+      const width = readUInt32BE(bytes, dataOffset);
+      const height = readUInt32BE(bytes, dataOffset + 4);
+      bitDepth = bytes[dataOffset + 8];
+      colorType = bytes[dataOffset + 9];
+      const compression = bytes[dataOffset + 10];
+      const filter = bytes[dataOffset + 11];
+      const interlace = bytes[dataOffset + 12];
+      if (width < 1 || height < 1 || compression !== 0 || filter !== 0 || (interlace !== 0 && interlace !== 1)) return null;
+      if (!PNG_COLOR_DEPTHS.has(colorType) || !PNG_COLOR_DEPTHS.get(colorType).has(bitDepth)) return null;
+      dimensions = { width, height };
+      sawIhdr = true;
+      continue;
+    }
+
+    if (type === 'IHDR' || sawIend) return null;
+    if (type === 'PLTE') {
+      if (sawPlte || sawIdat || colorType === 0 || colorType === 4) return null;
+      if (chunkLength === 0 || chunkLength % 3 !== 0) return null;
+      const entries = chunkLength / 3;
+      if (entries < 1 || entries > 256) return null;
+      if (colorType === 3 && entries > 2 ** bitDepth) return null;
+      sawPlte = true;
+      continue;
+    }
+    if (type === 'IDAT') {
+      if (colorType === 3 && !sawPlte) return null;
+      sawIdat = true;
+      continue;
+    }
+    if (type === 'IEND') {
+      if (chunkLength !== 0 || !sawIdat || sawIend || offset !== bytes.length) return null;
+      sawIend = true;
+      return dimensions;
+    }
+  }
+
+  return sawIhdr && sawIdat && sawIend ? dimensions : null;
+}
+
+function parseJpegSegment(bytes, offset) {
+  if (bytes.length - offset < 2) return null;
+  const length = readUInt16BE(bytes, offset);
+  if (length < 2 || length > bytes.length - offset) return null;
+  return { length, dataOffset: offset + 2, end: offset + length };
+}
+
+function parseJpegSof(bytes, segment) {
+  if (segment.length < 8) return null;
+  const components = bytes[segment.dataOffset + 5];
+  if (components < 1 || segment.length !== 8 + (3 * components)) return null;
+  const width = readUInt16BE(bytes, segment.dataOffset + 3);
+  const height = readUInt16BE(bytes, segment.dataOffset + 1);
+  if (bytes[segment.dataOffset] < 1 || bytes[segment.dataOffset] > 16 || width < 1 || height < 1) return null;
+  const componentIds = new Set();
+  for (let index = 0; index < components; index += 1) {
+    const componentOffset = segment.dataOffset + 6 + (3 * index);
+    const id = bytes[componentOffset];
+    const sampling = bytes[componentOffset + 1];
+    if (id === 0 || componentIds.has(id) || sampling === 0 || bytes[componentOffset + 2] > 3) return null;
+    componentIds.add(id);
+  }
+  return { width, height, componentIds, count: components };
+}
+
+function validateJpegSos(bytes, segment, frame) {
+  if (!frame || segment.length < 8) return false;
+  const components = bytes[segment.dataOffset];
+  if (components < 1 || components > frame.count || segment.length !== 6 + (2 * components)) return false;
+  const seen = new Set();
+  for (let index = 0; index < components; index += 1) {
+    const componentOffset = segment.dataOffset + 1 + (2 * index);
+    const id = bytes[componentOffset];
+    const tables = bytes[componentOffset + 1];
+    if (!frame.componentIds.has(id) || seen.has(id) || (tables & 0x0f) > 3 || (tables >>> 4) > 3) return false;
+    seen.add(id);
+  }
+  const spectralStart = bytes[segment.dataOffset + 1 + (2 * components)];
+  const spectralEnd = bytes[segment.dataOffset + 2 + (2 * components)];
+  return spectralStart <= 63 && spectralEnd <= 63 && spectralStart <= spectralEnd;
+}
+
+function readJpegOutsideMarker(bytes, offset) {
+  if (offset >= bytes.length || bytes[offset] !== 0xff) return null;
+  let cursor = offset + 1;
+  while (cursor < bytes.length && bytes[cursor] === 0xff) cursor += 1;
+  if (cursor >= bytes.length) return null;
+  return { marker: bytes[cursor], next: cursor + 1 };
+}
+
+function readJpegScanMarker(bytes, offset) {
+  let cursor = offset;
+  while (cursor < bytes.length) {
+    if (bytes[cursor] !== 0xff) {
+      cursor += 1;
+      continue;
+    }
+    cursor += 1;
+    if (cursor >= bytes.length) return null;
+    while (cursor < bytes.length && bytes[cursor] === 0xff) cursor += 1;
+    if (cursor >= bytes.length) return null;
+    const marker = bytes[cursor++];
+    if (marker === 0x00 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+    return { marker, next: cursor };
+  }
+  return null;
 }
 
 function parseJpegDimensions(bytes) {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
-  const sofMarkers = new Set([
-    0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7,
-    0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
-  ]);
   let offset = 2;
+  let frame = null;
+  let sawSos = false;
+  let state = 'OUTER';
+
   while (offset < bytes.length) {
-    while (offset < bytes.length && bytes[offset] === 0xff) offset += 1;
-    if (offset >= bytes.length) return null;
-    const marker = bytes[offset++];
-    if (marker === 0xd9 || marker === 0xda) return null;
-    if (marker >= 0xd0 && marker <= 0xd7) continue;
-    if (offset + 2 > bytes.length) return null;
-    const segmentLength = bytes.readUInt16BE(offset);
-    if (segmentLength < 2 || offset + segmentLength > bytes.length) return null;
-    if (sofMarkers.has(marker)) {
-      if (segmentLength < 7) return null;
-      return { width: bytes.readUInt16BE(offset + 5), height: bytes.readUInt16BE(offset + 3) };
+    const markerInfo = state === 'SCAN' ? readJpegScanMarker(bytes, offset) : readJpegOutsideMarker(bytes, offset);
+    if (!markerInfo) return null;
+    const marker = markerInfo.marker;
+    offset = markerInfo.next;
+    if (state === 'SCAN') state = 'OUTER';
+
+    if (marker === 0xd9) {
+      if (!frame || !sawSos || offset !== bytes.length) return null;
+      return { width: frame.width, height: frame.height };
     }
-    offset += segmentLength;
+    if (marker === 0xd8 || marker === 0x01 || marker === 0x00 || (marker >= 0xd0 && marker <= 0xd7)) return null;
+    if (JPEG_SOF_MARKERS.has(marker)) {
+      if (frame) return null;
+      const segment = parseJpegSegment(bytes, offset);
+      if (!segment) return null;
+      frame = parseJpegSof(bytes, segment);
+      if (!frame) return null;
+      offset = segment.end;
+      continue;
+    }
+
+    const segment = parseJpegSegment(bytes, offset);
+    if (!segment) return null;
+    if (marker === 0xda) {
+      if (!validateJpegSos(bytes, segment, frame)) return null;
+      sawSos = true;
+      state = 'SCAN';
+    }
+    offset = segment.end;
   }
   return null;
 }
 
 function parseWebpDimensions(bytes) {
-  if (bytes.length < 16 || bytes.toString('ascii', 0, 4) !== 'RIFF' || bytes.toString('ascii', 8, 12) !== 'WEBP') {
-    return null;
-  }
+  if (bytes.length < 20 || !asciiAt(bytes, 0, 'RIFF') || !asciiAt(bytes, 8, 'WEBP')) return null;
+  const riffSize = readUInt32LE(bytes, 4);
+  if (riffSize !== bytes.length - 8 || riffSize < 4) return null;
+  const boundary = bytes.length;
   let offset = 12;
-  while (offset + 8 <= bytes.length) {
-    const chunkType = bytes.toString('ascii', offset, offset + 4);
-    const chunkLength = bytes.readUInt32LE(offset + 4);
-    const data = offset + 8;
-    if (data + chunkLength > bytes.length) return null;
-    if (chunkType === 'VP8X' && chunkLength >= 10) {
-      return {
-        width: 1 + bytes[data + 4] + (bytes[data + 5] << 8) + (bytes[data + 6] << 16),
-        height: 1 + bytes[data + 7] + (bytes[data + 8] << 8) + (bytes[data + 9] << 16),
-      };
+  let primary = null;
+  let extended = null;
+  while (offset < boundary) {
+    if (boundary - offset < 8) return null;
+    const chunkType = String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+    const chunkLength = readUInt32LE(bytes, offset + 4);
+    const dataOffset = offset + 8;
+    if (chunkLength > boundary - dataOffset) return null;
+    const paddedEnd = dataOffset + chunkLength + (chunkLength % 2);
+    if (paddedEnd > boundary) return null;
+    if ((chunkLength % 2) === 1 && bytes[dataOffset + chunkLength] !== 0) return null;
+
+    if (chunkType === 'ANIM' || chunkType === 'ANMF') return null;
+    if (chunkType === 'VP8X') {
+      if (extended || primary || chunkLength !== 10) return null;
+      const flags = bytes[dataOffset];
+      if ((flags & 0xc1) !== 0 || (flags & 0x02) !== 0 || bytes[dataOffset + 1] !== 0 || bytes[dataOffset + 2] !== 0 || bytes[dataOffset + 3] !== 0) return null;
+      const width = readUInt24LE(bytes, dataOffset + 4) + 1;
+      const height = readUInt24LE(bytes, dataOffset + 7) + 1;
+      extended = { width, height };
+    } else if (chunkType === 'VP8 ') {
+      if (primary || chunkLength < 10 || (bytes[dataOffset] & 1) !== 0 || bytes[dataOffset + 3] !== 0x9d || bytes[dataOffset + 4] !== 0x01 || bytes[dataOffset + 5] !== 0x2a) return null;
+      const width = readUInt16LE(bytes, dataOffset + 6) & 0x3fff;
+      const height = readUInt16LE(bytes, dataOffset + 8) & 0x3fff;
+      if (width < 1 || height < 1) return null;
+      primary = { width, height };
+    } else if (chunkType === 'VP8L') {
+      if (primary || chunkLength < 5 || bytes[dataOffset] !== 0x2f) return null;
+      const bits = readUInt32LE(bytes, dataOffset + 1);
+      if ((bits >>> 29) !== 0) return null;
+      primary = { width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1 };
     }
-    if (chunkType === 'VP8 ' && chunkLength >= 10 && bytes[data + 3] === 0x9d && bytes[data + 4] === 0x01 && bytes[data + 5] === 0x2a) {
-      return { width: bytes.readUInt16LE(data + 6) & 0x3fff, height: bytes.readUInt16LE(data + 8) & 0x3fff };
-    }
-    if (chunkType === 'VP8L' && chunkLength >= 5 && bytes[data] === 0x2f) {
-      const bits = bytes.readUInt32LE(data + 1);
-      return { width: 1 + (bits & 0x3fff), height: 1 + ((bits >>> 14) & 0x3fff) };
-    }
-    offset = data + chunkLength + (chunkLength % 2);
+    offset = paddedEnd;
   }
-  return null;
+  if (!primary || (extended && (extended.width !== primary.width || extended.height !== primary.height))) return null;
+  return primary;
 }
 
 function getImageDimensions(bytes, mimeType) {
@@ -175,7 +409,7 @@ function validateImageBytes(bytes, metadata) {
   if (byteLength < 1 || byteLength > config.maxEncodedBytes) {
     fail('VISION_SIZE_LIMIT', 'image exceeds the encoded byte limit');
   }
-  const buffer = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  const buffer = bytes;
   const actual = getImageDimensions(buffer, metadata.mimeType);
   if (!actual || actual.width < 1 || actual.height < 1) {
     fail('VISION_INVALID_IMAGE', 'image signature or dimensions are invalid');
@@ -209,7 +443,7 @@ function validateCaptureMetadata(metadata, options = {}) {
     mimeType: metadata.mimeType,
     width: metadata.width,
     height: metadata.height,
-    capturedAt: normalizeTimestamp(metadata.capturedAt, 'capturedAt', now),
+    capturedAt: normalizeTimestamp(metadata.capturedAt, 'capturedAt', now, { enforceFreshness: options.enforceFreshness !== false }),
   };
 }
 
@@ -230,9 +464,9 @@ function normalizeProviderResult(result) {
 }
 
 function normalizeObservation({ metadata, result, observedAt, analysisMs, now } = {}) {
-  const normalizedMetadata = validateCaptureMetadata(metadata, { now: now ?? observedAt });
-  const provider = normalizeProviderResult(result);
   const observedMs = resolveNow(observedAt ?? now);
+  const normalizedMetadata = validateCaptureMetadata(metadata, { now: observedMs, enforceFreshness: false });
+  const provider = normalizeProviderResult(result);
   if (!Number.isInteger(analysisMs) || analysisMs < 0) fail('VISION_INVALID_TIMING', 'analysis timing must be a non-negative integer');
   const observation = {
     version: config.contractVersion,
@@ -258,10 +492,13 @@ function validateObservation(observation, options = {}) {
     fail('VISION_INVALID_OBSERVATION', 'screen observation identity is invalid');
   }
   if (!config.modes.includes(observation.mode)) fail('VISION_INVALID_MODE', 'unsupported observation mode');
-  const capturedAt = normalizeTimestamp(observation.capturedAt, 'capturedAt', now);
+  const capturedAt = normalizeTimestamp(observation.capturedAt, 'capturedAt', now, { enforceFreshness: false });
   const observedAt = normalizeTimestamp(observation.observedAt, 'observedAt', now, { enforceFreshness: false });
   const expiresAt = normalizeTimestamp(observation.expiresAt, 'expiresAt', now, { enforceFreshness: false });
+  const capturedMs = Date.parse(capturedAt);
   const observedMs = Date.parse(observedAt);
+  if (capturedMs > observedMs + config.captureMaxFutureSkewMs) fail('VISION_TIMESTAMP_FUTURE', 'capturedAt is too far after observedAt');
+  if (observedMs > now + config.captureMaxFutureSkewMs) fail('VISION_TIMESTAMP_FUTURE', 'observedAt is too far in the future');
   if (Date.parse(expiresAt) !== observedMs + config.observationTtlMs) fail('VISION_INVALID_EXPIRY', 'observation expiry must match the configured TTL');
   if (Date.parse(expiresAt) <= now) fail('VISION_OBSERVATION_EXPIRED', 'screen observation is expired');
   if (!observation.timing || typeof observation.timing !== 'object' || Array.isArray(observation.timing)) {
