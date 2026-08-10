@@ -26,7 +26,7 @@ export const TTSConfigTab = () => {
         </p>
       </div>
 
-      <TTSProviderSelector />
+      <TTSProviderSelector previewSource="control-panel-tts-selector" />
 
       {/* Quota Gemini TTS */}
       {stats && stats.ttsQuota && (

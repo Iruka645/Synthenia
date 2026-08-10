@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "provider": {
+    "id": "jaitts-f5tts",
+    "modelId": "JTS-AI/JaiTTS-F5TTS",
+    "purpose": "local-noncommercial-evaluation"
+  },
+  "python": {
+    "version": "3.11.15",
+    "entrypoint": "server.py"
+  },
+  "sources": [
+    {
+      "role": "model",
+      "url": "https://huggingface.co/JTS-AI/JaiTTS-F5TTS/tree/50a5aa8986df1e3882873834f689a05bcae06bcb",
+      "revision": "50a5aa8986df1e3882873834f689a05bcae06bcb",
+      "retrievedAt": "2026-08-10",
+      "license": "CC-BY-NC-4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-nc/4.0/"
+    },
+    {
+      "role": "code",
+      "url": "https://github.com/SWivid/F5-TTS/tree/91f499635cb4f8b8a926e83f1839f5338bc2ef87",
+      "revision": "91f499635cb4f8b8a926e83f1839f5338bc2ef87",
+      "retrievedAt": "2026-08-10",
+      "license": "MIT",
+      "licenseUrl": "https://github.com/SWivid/F5-TTS/blob/91f499635cb4f8b8a926e83f1839f5338bc2ef87/LICENSE"
+    },
+    {
+      "role": "vocoder",
+      "url": "UNRESOLVED",
+      "revision": "UNRESOLVED",
+      "retrievedAt": "2026-08-10",
+      "license": "UNRESOLVED",
+      "licenseUrl": "UNRESOLVED"
+    }
+  ],
+  "artifacts": [
+    {
+      "sourceRole": "model",
+      "downloadUrl": "https://huggingface.co/JTS-AI/JaiTTS-F5TTS/resolve/50a5aa8986df1e3882873834f689a05bcae06bcb/model.pt?download=true",
+      "relativePath": "model.pt",
+      "sizeBytes": 0,
+      "sha256": "74a7b9fdeb9632f0b8784de6aa6db9422d408f2a948cd477dd4bd06ca7f206b9",
+      "format": "pickle",
+      "executableSerialization": true
+    },
+    {
+      "sourceRole": "model",
+      "downloadUrl": "https://huggingface.co/JTS-AI/JaiTTS-F5TTS/resolve/50a5aa8986df1e3882873834f689a05bcae06bcb/vocab.txt?download=true",
+      "relativePath": "vocab.txt",
+      "sizeBytes": 0,
+      "sha256": "UNRESOLVED",
+      "format": "text",
+      "executableSerialization": false
+    },
+    {
+      "sourceRole": "vocoder",
+      "downloadUrl": "UNRESOLVED",
+      "relativePath": "vocoder/model.safetensors",
+      "sizeBytes": 0,
+      "sha256": "UNRESOLVED",
+      "format": "safetensors",
+      "executableSerialization": false
+    }
+  ],
+  "dependencies": {
+    "lockFile": "requirements.lock",
+    "sha256": "f01828231838ffd4f5a89120071fad88425f5fbe22773e4a12e59cc30ce01c25",
+    "status": "UNRESOLVED"
+  },
+  "security": {
+    "trustRemoteCode": false,
+    "runtimeNetwork": false
+  },
+  "gates": {
+    "pinsVerified": false,
+    "licensesResolved": false,
+    "checksumsComplete": false,
+    "enablementAllowed": false
+  },
+  "blockers": [
+    "Exact artifact byte sizes and non-checkpoint hashes are incomplete.",
+    "The Windows Python 3.11 CUDA dependency graph is not fully hash-locked.",
+    "The local vocoder source, revision, artifacts, and license are unresolved."
+  ]
+}

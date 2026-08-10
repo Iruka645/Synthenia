@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "provider": {
+    "id": "vachaspeech-0.6b",
+    "modelId": "VIZINTZOR/VachaSpeech-0.6B",
+    "purpose": "local-noncommercial-evaluation"
+  },
+  "python": {
+    "version": "3.11.15",
+    "entrypoint": "server.py"
+  },
+  "sources": [
+    {
+      "role": "model",
+      "url": "https://huggingface.co/VIZINTZOR/VachaSpeech-0.6B/tree/b71f12ca7d9bb760b25a60cd1baf592297ee2f55",
+      "revision": "b71f12ca7d9bb760b25a60cd1baf592297ee2f55",
+      "retrievedAt": "2026-08-10",
+      "license": "Apache-2.0",
+      "licenseUrl": "https://huggingface.co/VIZINTZOR/VachaSpeech-0.6B/blob/b71f12ca7d9bb760b25a60cd1baf592297ee2f55/README.md"
+    },
+    {
+      "role": "code",
+      "url": "https://github.com/VYNCX/VachaSpeech",
+      "revision": "UNRESOLVED",
+      "retrievedAt": "2026-08-10",
+      "license": "UNRESOLVED",
+      "licenseUrl": "UNRESOLVED"
+    },
+    {
+      "role": "codec",
+      "url": "https://huggingface.co/VIZINTZOR/VachaSpeech-0.6B/tree/b71f12ca7d9bb760b25a60cd1baf592297ee2f55/codec",
+      "revision": "b71f12ca7d9bb760b25a60cd1baf592297ee2f55",
+      "retrievedAt": "2026-08-10",
+      "license": "UNRESOLVED",
+      "licenseUrl": "UNRESOLVED"
+    }
+  ],
+  "artifacts": [
+    {
+      "sourceRole": "model",
+      "downloadUrl": "https://huggingface.co/VIZINTZOR/VachaSpeech-0.6B/resolve/b71f12ca7d9bb760b25a60cd1baf592297ee2f55/model.safetensors?download=true",
+      "relativePath": "model.safetensors",
+      "sizeBytes": 0,
+      "sha256": "UNRESOLVED",
+      "format": "safetensors",
+      "executableSerialization": false
+    },
+    {
+      "sourceRole": "model",
+      "downloadUrl": "https://huggingface.co/VIZINTZOR/VachaSpeech-0.6B/resolve/b71f12ca7d9bb760b25a60cd1baf592297ee2f55/tokenizer.json?download=true",
+      "relativePath": "tokenizer.json",
+      "sizeBytes": 0,
+      "sha256": "UNRESOLVED",
+      "format": "json",
+      "executableSerialization": false
+    },
+    {
+      "sourceRole": "codec",
+      "downloadUrl": "UNRESOLVED",
+      "relativePath": "codec/model.safetensors",
+      "sizeBytes": 0,
+      "sha256": "UNRESOLVED",
+      "format": "safetensors",
+      "executableSerialization": false
+    }
+  ],
+  "dependencies": {
+    "lockFile": "requirements.lock",
+    "sha256": "02873453f245fdd4314055cfae5ad7d1f08359e360c6cd71fa51aae22e85a882",
+    "status": "UNRESOLVED"
+  },
+  "security": {
+    "trustRemoteCode": false,
+    "runtimeNetwork": false
+  },
+  "gates": {
+    "pinsVerified": false,
+    "licensesResolved": false,
+    "checksumsComplete": false,
+    "enablementAllowed": false
+  },
+  "blockers": [
+    "The inference repository revision and repository license are unresolved.",
+    "MioCodec provenance, artifact hashes, and license are unresolved.",
+    "Model artifact sizes and hashes are incomplete.",
+    "The Windows Python 3.11 CUDA dependency graph is not fully hash-locked."
+  ]
+}

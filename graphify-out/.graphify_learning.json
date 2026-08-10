@@ -1,5 +1,382 @@
 {
-  "generated_at": "2026-07-29T04:47:38.371333+00:00",
-  "nodes": {},
+  "generated_at": "2026-08-10T02:50:15.564646+00:00",
+  "nodes": {
+    "backend_scripts_benchmark_models": {
+      "code_fingerprint": "53b532c78441d6d3c9821be273c25d5426a0b95c3b8422ac1cda95cb28cf7161",
+      "label": "benchmark_models.js",
+      "last": "2026-08-09T18:16:53.555511+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-09T18:16:53.555511+00:00",
+          "outcome": "useful",
+          "q": "ตอนนี้ได้ Hardware ที่แรงขึ้นมาแล้วครับ เป็น R7 2700x, RTX 3060 ti 8GB, Ram 16 GB (8×2) ddr4 เลยอยากลองพิจารณาขยับเป็นโมเดล llm ที่เก่งขึ้น หรือจะหา tts ที่ดีกว่าดีครับ ขอความคิดเห็นก่อนครับ"
+        }
+      ],
+      "score": 0.991796823,
+      "source_file": "backend/scripts/benchmark_models.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "backend_src_config_personality_model_config": {
+      "code_fingerprint": "09b69f51ee13e486debb422f3b6d55f44b0c35114fa224ce1e550dd383f6ad5e",
+      "label": "MODEL_CONFIG",
+      "last": "2026-08-09T18:16:53.555511+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-09T18:16:53.555511+00:00",
+          "outcome": "useful",
+          "q": "ตอนนี้ได้ Hardware ที่แรงขึ้นมาแล้วครับ เป็น R7 2700x, RTX 3060 ti 8GB, Ram 16 GB (8×2) ddr4 เลยอยากลองพิจารณาขยับเป็นโมเดล llm ที่เก่งขึ้น หรือจะหา tts ที่ดีกว่าดีครับ ขอความคิดเห็นก่อนครับ"
+        }
+      ],
+      "score": 0.991796823,
+      "source_file": "backend/src/config/personality.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "backend_src_middleware_ratelimits": {
+      "code_fingerprint": "53fdf0af132b297cc47ec9110fb2316657b15c6be83c87b91ee326bf983d4a0a",
+      "label": "rateLimits.js",
+      "last": "2026-08-10T00:42:50.134221+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T00:42:50.134221+00:00",
+          "outcome": "useful",
+          "q": "ลุยได้เลยครับ ขั้น Audit ให้ Terra ใช้ skill scrutinize ด้วยครับ"
+        }
+      ],
+      "score": 0.997957564,
+      "source_file": "backend/src/middleware/rateLimits.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "backend_src_middleware_ratelimits_ttsswitchlimit": {
+      "code_fingerprint": "53fdf0af132b297cc47ec9110fb2316657b15c6be83c87b91ee326bf983d4a0a",
+      "label": "ttsSwitchLimit",
+      "last": "2026-08-10T01:40:58.001089+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T01:40:58.001089+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize re-audit cycle 2"
+        }
+      ],
+      "score": 0.998888811,
+      "source_file": "backend/src/middleware/rateLimits.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "backend_src_routes_chat": {
+      "code_fingerprint": "eb1148cf4e4bf83a7aa07f06565a05f6e251ac1cae4f307bb51c846ce5177ea4",
+      "label": "chat.js",
+      "last": "2026-08-10T00:42:50.134221+00:00",
+      "neg": 1,
+      "provenance": [
+        {
+          "date": "2026-08-10T00:42:50.134221+00:00",
+          "outcome": "useful",
+          "q": "ลุยได้เลยครับ ขั้น Audit ให้ Terra ใช้ skill scrutinize ด้วยครับ"
+        },
+        {
+          "date": "2026-07-20T02:22:49.918557+00:00",
+          "outcome": "corrected",
+          "q": "Graphify ทำงานถูกต้องไหม และอ่านง่ายขึ้นแค่ไหนเมื่อเทียบกับปกติ"
+        }
+      ],
+      "score": 0.382656196,
+      "source_file": "backend/src/routes/chat.js",
+      "status": "contested",
+      "uses": 1,
+      "verdict": "useful"
+    },
+    "backend_src_routes_tts": {
+      "code_fingerprint": "55ee5b58f82737d499ceb5646ef20cd69178bb3efd1143e3f2ab48e870ffea0a",
+      "label": "tts.js",
+      "last": "2026-08-10T01:40:58.001089+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T01:40:58.001089+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize re-audit cycle 2"
+        },
+        {
+          "date": "2026-08-10T01:16:38.379463+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize audit"
+        },
+        {
+          "date": "2026-08-10T00:42:50.134221+00:00",
+          "outcome": "useful",
+          "q": "ลุยได้เลยครับ ขั้น Audit ให้ Terra ใช้ skill scrutinize ด้วยครับ"
+        },
+        {
+          "date": "2026-08-10T00:11:56.215483+00:00",
+          "outcome": "useful",
+          "q": "ถ้าอย่างนั้นก็วางแผนการ implement ตัว tts ตัวใหม่เลยครับ จริงๆก็ถ้าทำทั้งสอง provider ก่อนก็ดีครับ จะได้เทสทั้งคู่ ถ้าอันไหนเวิร์คก็ค่อยเก็บไว้"
+        }
+      ],
+      "score": 3.992808294,
+      "source_file": "backend/src/routes/tts.js",
+      "status": "preferred",
+      "uses": 4
+    },
+    "backend_src_services_llm_index_llmmanager": {
+      "code_fingerprint": "72367d882432dd45deab0af801dbeeb85ea030f787d6bd5a161f5d7f490eaf44",
+      "label": "LLMManager",
+      "last": "2026-08-09T18:16:53.555511+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-09T18:16:53.555511+00:00",
+          "outcome": "useful",
+          "q": "ตอนนี้ได้ Hardware ที่แรงขึ้นมาแล้วครับ เป็น R7 2700x, RTX 3060 ti 8GB, Ram 16 GB (8×2) ddr4 เลยอยากลองพิจารณาขยับเป็นโมเดล llm ที่เก่งขึ้น หรือจะหา tts ที่ดีกว่าดีครับ ขอความคิดเห็นก่อนครับ"
+        }
+      ],
+      "score": 0.991796823,
+      "source_file": "backend/src/services/llm/index.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "backend_src_services_tts_index_ttsmanager": {
+      "code_fingerprint": "ae7436d77a97758454081dc9421a10d863f8a8f9356c1fcaee410ceba1035de2",
+      "label": "TTSManager",
+      "last": "2026-08-10T02:11:45.818416+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T02:11:45.818416+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize audit cycle 3"
+        },
+        {
+          "date": "2026-08-10T01:40:58.001089+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize re-audit cycle 2"
+        },
+        {
+          "date": "2026-08-10T01:16:38.379463+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize audit"
+        },
+        {
+          "date": "2026-08-10T00:42:50.134221+00:00",
+          "outcome": "useful",
+          "q": "ลุยได้เลยครับ ขั้น Audit ให้ Terra ใช้ skill scrutinize ด้วยครับ"
+        },
+        {
+          "date": "2026-08-10T00:11:56.215483+00:00",
+          "outcome": "useful",
+          "q": "ถ้าอย่างนั้นก็วางแผนการ implement ตัว tts ตัวใหม่เลยครับ จริงๆก็ถ้าทำทั้งสอง provider ก่อนก็ดีครับ จะได้เทสทั้งคู่ ถ้าอันไหนเวิร์คก็ค่อยเก็บไว้"
+        }
+      ],
+      "score": 5.98398764,
+      "source_file": "backend/src/services/tts/index.js",
+      "status": "preferred",
+      "uses": 6
+    },
+    "backend_src_services_tts_neural_neuralttscontroller": {
+      "code_fingerprint": "eb3287c90c18f999f3b3dfe185bbdd0a3cb38ac121c8d198459f81f189a5e6e6",
+      "label": "neuralTtsController.js",
+      "last": "2026-08-10T01:40:58.001089+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T01:40:58.001089+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize re-audit cycle 2"
+        },
+        {
+          "date": "2026-08-10T01:16:38.379463+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize audit"
+        }
+      ],
+      "score": 1.997387803,
+      "source_file": "backend/src/services/tts/neural/neuralTtsController.js",
+      "status": "preferred",
+      "uses": 2
+    },
+    "backend_src_services_tts_neural_neuralttscontroller_neuralttscontroller": {
+      "code_fingerprint": "eb3287c90c18f999f3b3dfe185bbdd0a3cb38ac121c8d198459f81f189a5e6e6",
+      "label": "NeuralTTSController",
+      "last": "2026-08-10T02:11:45.818416+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T02:11:45.818416+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize audit cycle 3"
+        }
+      ],
+      "score": 0.999382523,
+      "source_file": "backend/src/services/tts/neural/neuralTtsController.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "backend_src_services_tts_neural_outputvalidator": {
+      "code_fingerprint": "fc951136abb94fc4082613aef623eef479fec121a0552a2da214e2c63138c772",
+      "label": "outputValidator.js",
+      "last": "2026-08-10T01:40:58.001089+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T01:40:58.001089+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize re-audit cycle 2"
+        },
+        {
+          "date": "2026-08-10T01:16:38.379463+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize audit"
+        }
+      ],
+      "score": 1.997387803,
+      "source_file": "backend/src/services/tts/neural/outputValidator.js",
+      "status": "preferred",
+      "uses": 2
+    },
+    "backend_src_services_tts_neural_publishedaudiostore_publishedaudiostore": {
+      "code_fingerprint": "1d09dc57e9ae70099e63b3c94fc319a6885914743d2ea07ebebd76e486ed81bb",
+      "label": "PublishedAudioStore",
+      "last": "2026-08-10T02:11:45.818416+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T02:11:45.818416+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize audit cycle 3"
+        }
+      ],
+      "score": 0.999382523,
+      "source_file": "backend/src/services/tts/neural/publishedAudioStore.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "backend_src_services_tts_neural_sidecarclient": {
+      "code_fingerprint": "20c42fbc8def81ada9fd3da9e8e4a9958ff63775d0045d6278c3a0db66ed4138",
+      "label": "sidecarClient.js",
+      "last": "2026-08-10T01:40:58.001089+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T01:40:58.001089+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize re-audit cycle 2"
+        },
+        {
+          "date": "2026-08-10T01:16:38.379463+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize audit"
+        }
+      ],
+      "score": 1.997387803,
+      "source_file": "backend/src/services/tts/neural/sidecarClient.js",
+      "status": "preferred",
+      "uses": 2
+    },
+    "backend_src_services_tts_neural_sidecarclient_sidecarclient": {
+      "code_fingerprint": "20c42fbc8def81ada9fd3da9e8e4a9958ff63775d0045d6278c3a0db66ed4138",
+      "label": "SidecarClient",
+      "last": "2026-08-10T02:11:45.818416+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T02:11:45.818416+00:00",
+          "outcome": "useful",
+          "q": "TTS v2 Phase 1 independent scrutinize audit cycle 3"
+        }
+      ],
+      "score": 0.999382523,
+      "source_file": "backend/src/services/tts/neural/sidecarClient.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "backend_src_services_tts_ttsfactory": {
+      "code_fingerprint": "aa328d376585e97a4c764c2acaf7a3bd020122a630886abf23be06a46a5ea729",
+      "label": "ttsFactory.js",
+      "last": "2026-08-10T00:42:50.134221+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T00:42:50.134221+00:00",
+          "outcome": "useful",
+          "q": "ลุยได้เลยครับ ขั้น Audit ให้ Terra ใช้ skill scrutinize ด้วยครับ"
+        },
+        {
+          "date": "2026-08-10T00:11:56.215483+00:00",
+          "outcome": "useful",
+          "q": "ถ้าอย่างนั้นก็วางแผนการ implement ตัว tts ตัวใหม่เลยครับ จริงๆก็ถ้าทำทั้งสอง provider ก่อนก็ดีครับ จะได้เทสทั้งคู่ ถ้าอันไหนเวิร์คก็ค่อยเก็บไว้"
+        }
+      ],
+      "score": 1.995420492,
+      "source_file": "backend/src/services/tts/ttsFactory.js",
+      "status": "preferred",
+      "uses": 2
+    },
+    "backend_src_services_voiceconversionservice_voiceconversionservice": {
+      "code_fingerprint": "63735d632bf39c9adf499bbe818c31f08b1392722bd0661ca36e3a671fae3b09",
+      "label": "VoiceConversionService",
+      "last": "2026-08-10T00:42:50.134221+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T00:42:50.134221+00:00",
+          "outcome": "useful",
+          "q": "ลุยได้เลยครับ ขั้น Audit ให้ Terra ใช้ skill scrutinize ด้วยครับ"
+        },
+        {
+          "date": "2026-08-10T00:11:56.215483+00:00",
+          "outcome": "useful",
+          "q": "ถ้าอย่างนั้นก็วางแผนการ implement ตัว tts ตัวใหม่เลยครับ จริงๆก็ถ้าทำทั้งสอง provider ก่อนก็ดีครับ จะได้เทสทั้งคู่ ถ้าอันไหนเวิร์คก็ค่อยเก็บไว้"
+        }
+      ],
+      "score": 1.995420492,
+      "source_file": "backend/src/services/voiceConversionService.js",
+      "status": "preferred",
+      "uses": 2
+    },
+    "backend_src_websocket": {
+      "code_fingerprint": "ab82062726ff806564f1cbfc1206164e9c649f9d1362da291b2ef449992913e0",
+      "label": "websocket.js",
+      "last": "2026-08-10T00:42:50.134221+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T00:42:50.134221+00:00",
+          "outcome": "useful",
+          "q": "ลุยได้เลยครับ ขั้น Audit ให้ Terra ใช้ skill scrutinize ด้วยครับ"
+        }
+      ],
+      "score": 0.997957564,
+      "source_file": "backend/src/websocket.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "frontend_src_components_ttsproviderselector": {
+      "code_fingerprint": "c5c0df3d52a4607e2429115d2c5120c1e547c06ff65df9c8f8d5e29c63508350",
+      "label": "TTSProviderSelector.jsx",
+      "last": "2026-08-10T00:42:50.134221+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T00:42:50.134221+00:00",
+          "outcome": "useful",
+          "q": "ลุยได้เลยครับ ขั้น Audit ให้ Terra ใช้ skill scrutinize ด้วยครับ"
+        },
+        {
+          "date": "2026-08-10T00:11:56.215483+00:00",
+          "outcome": "useful",
+          "q": "ถ้าอย่างนั้นก็วางแผนการ implement ตัว tts ตัวใหม่เลยครับ จริงๆก็ถ้าทำทั้งสอง provider ก่อนก็ดีครับ จะได้เทสทั้งคู่ ถ้าอันไหนเวิร์คก็ค่อยเก็บไว้"
+        }
+      ],
+      "score": 1.995420492,
+      "source_file": "frontend/src/components/TTSProviderSelector.jsx",
+      "status": "preferred",
+      "uses": 2
+    },
+    "frontend_src_contexts_ttsprovidercontext": {
+      "code_fingerprint": "fc0b9254f9360e8272216ad35c9042ecb97ce075e3ae2195aa02f85739a43180",
+      "label": "TTSProviderContext.jsx",
+      "last": "2026-08-10T00:42:50.134221+00:00",
+      "provenance": [
+        {
+          "date": "2026-08-10T00:42:50.134221+00:00",
+          "outcome": "useful",
+          "q": "ลุยได้เลยครับ ขั้น Audit ให้ Terra ใช้ skill scrutinize ด้วยครับ"
+        }
+      ],
+      "score": 0.997957564,
+      "source_file": "frontend/src/contexts/TTSProviderContext.jsx",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
   "version": 1
 }

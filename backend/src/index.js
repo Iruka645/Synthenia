@@ -14,6 +14,10 @@ const ttsRoutes = require('./routes/tts');
 const { initScheduler } = require('./jobs/scheduler');
 const llmManager = require('./services/llm/index');
 const ttsManager = require('./services/ttsService');
+const {
+  publishedAudioStore,
+  createPublishedAudioMiddleware,
+} = require('./services/tts/neural/publishedAudioStore');
 
 //ENV define
 const PORT = securityConfig.port
@@ -44,7 +48,12 @@ const audioDir = path.join(__dirname, '..', '..', 'audio');
 if (!fs.existsSync(audioDir)) {
   fs.mkdirSync(audioDir, { recursive: true });
 }
-app.use('/audio', express.static(audioDir, { fallthrough: false, maxAge: '1h' }));
+app.use('/audio/:filename', createPublishedAudioMiddleware(publishedAudioStore));
+app.use('/audio', express.static(audioDir, {
+  fallthrough: false,
+  maxAge: '1h',
+  dotfiles: 'deny',
+}));
 
 //application routes
 app.get("/",(req,res)=>{
@@ -76,6 +85,7 @@ initWebSocket(server);
 
 async function startServer() {
   // à¹‚à¸«à¸¥à¸”à¸„à¹ˆà¸² provider à¸—à¸µà¹ˆà¹€à¸„à¸¢ switch à¹„à¸§à¹‰à¸ˆà¸²à¸ DB à¸à¹ˆà¸­à¸™à¹€à¸›à¸´à¸”à¸£à¸±à¸š request
+  await publishedAudioStore.initialize();
   await llmManager.initialize();
   await ttsManager.initialize();
 
@@ -106,6 +116,13 @@ function gracefulShutdown(signal) {
   server.close(async () => {
     console.log('[Server] HTTP server closed.');
     
+    try {
+      await ttsManager.shutdown();
+      console.log('[Server] TTS sidecar stopped.');
+    } catch (err) {
+      console.error('[Server] Error stopping TTS sidecar:', err.message);
+    }
+
     if (process.env.VOICE_CONVERSION_ENABLED === 'true') {
       try {
         const voiceConversionService = require('./services/voiceConversionService');

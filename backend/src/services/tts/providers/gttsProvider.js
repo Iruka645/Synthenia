@@ -1,46 +1,87 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const BaseProvider = require('./baseProvider');
+const { TTSError } = require('../neural/contracts');
+
+const MAX_STDOUT_BYTES = 512;
 
 class GTTSProvider extends BaseProvider {
+  constructor(options = {}) {
+    super();
+    this.spawnImpl = options.spawnImpl || spawn;
+    this.pythonPath = options.pythonPath
+      || path.join(__dirname, '..', '..', '..', 'python', 'venv', 'Scripts', 'python.exe');
+    this.scriptPath = options.scriptPath
+      || path.join(__dirname, '..', '..', '..', 'python', 'gtts_tts.py');
+  }
+
   async synthesize(text) {
     return new Promise((resolve, reject) => {
-      // Python environment inside backend/src/python
-      const pythonPath = path.join(__dirname, '..', '..', '..', 'python', 'venv', 'Scripts', 'python.exe');
-      const scriptPath = path.join(__dirname, '..', '..', '..', 'python', 'gtts_tts.py');
-      
-      const pyProcess = spawn(pythonPath, [scriptPath, text]);
-
       let stdoutData = '';
-      let stderrData = '';
+      let stdoutBytes = 0;
+      let settled = false;
+      let timeoutId;
 
-      const timeoutId = setTimeout(() => {
+      const settle = (error, value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        if (error) reject(error);
+        else resolve(value);
+      };
+
+      const fail = (code) => {
+        if (settled) return;
+        console.error(`[gTTS Provider] code=${code}`);
+        settle(new TTSError(code));
+      };
+
+      let pyProcess;
+      try {
+        pyProcess = this.spawnImpl(this.pythonPath, [this.scriptPath, text], {
+          shell: false,
+          windowsHide: true,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+      } catch {
+        fail('TTS_SYNTHESIS_FAILED');
+        return;
+      }
+
+      timeoutId = setTimeout(() => {
         pyProcess.kill();
-        reject(new Error('gTTS synthesis timeout (30s)'));
+        fail('TTS_TIMEOUT');
       }, 30000);
 
       pyProcess.stdout.on('data', (data) => {
-        stdoutData += data.toString();
-      });
-
-      pyProcess.stderr.on('data', (data) => {
-        stderrData += data.toString();
-      });
-
-      pyProcess.on('close', (code) => {
-        clearTimeout(timeoutId);
-        
-        if (code !== 0) {
-          console.error(`Python gTTS process exited with code ${code}. Error: ${stderrData}`);
-          return reject(new Error(stderrData || `gTTS execution failed with code ${code}`));
+        const chunk = Buffer.from(data);
+        stdoutBytes += chunk.length;
+        if (stdoutBytes > MAX_STDOUT_BYTES) {
+          pyProcess.kill();
+          fail('TTS_SYNTHESIS_FAILED');
+          return;
         }
-        
+        stdoutData += chunk.toString('utf8');
+      });
+
+      // Always drain child stderr to avoid backpressure, but never retain or expose it.
+      pyProcess.stderr.on('data', () => {});
+
+      pyProcess.once('error', () => fail('TTS_SYNTHESIS_FAILED'));
+
+      pyProcess.once('close', (code) => {
+        if (code !== 0) {
+          fail('TTS_SYNTHESIS_FAILED');
+          return;
+        }
+
         const filename = stdoutData.trim();
         if (!filename) {
-          return reject(new Error('gTTS script did not return a filename'));
+          fail('TTS_SYNTHESIS_FAILED');
+          return;
         }
-        
-        resolve(filename);
+
+        settle(null, filename);
       });
     });
   }

@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { updateVoiceConversionConfig, previewTTS, resetConfigKey } from '../../services/api';
+import { updateVoiceConversionConfig, resetConfigKey } from '../../services/api';
+import { getSafeTTSErrorMessage } from '../../services/ttsContracts';
 import ConfigSlider from '../ui/ConfigSlider';
 import ConfigToggle from '../ui/ConfigToggle';
 import { useUI } from '../../contexts/UIContext';
+import { useTTSProvider } from '../../contexts/TTSProviderContext';
+
+const PREVIEW_SOURCE = 'voice-conversion-tab';
 
 export const VoiceConversionTab = ({ config, onConfigChange }) => {
   const { showConfirm } = useUI();
+  const {
+    playing,
+    previewReady,
+    playTest,
+    stopPreview,
+  } = useTTSProvider();
   const [enabled, setEnabled] = useState(config['voiceConversion.enabled'] || false);
   const [pitch, setPitch] = useState(config['voiceConversion.pitch'] || 0);
   const [indexRate, setIndexRate] = useState(config['voiceConversion.indexRate'] || 0.4);
@@ -17,7 +27,6 @@ export const VoiceConversionTab = ({ config, onConfigChange }) => {
 
   // Preview States
   const [testText, setTestText] = useState('สวัสดีค่ะ เสียงของฉันแปลกไปหรือเปล่าคะ?');
-  const [playing, setPlaying] = useState(false);
   const [playError, setPlayError] = useState(null);
 
   useEffect(() => {
@@ -27,6 +36,10 @@ export const VoiceConversionTab = ({ config, onConfigChange }) => {
       setIndexRate(config['voiceConversion.indexRate'] || 0.4);
     }
   }, [config, isDirty]);
+
+  useEffect(() => () => {
+    stopPreview(PREVIEW_SOURCE);
+  }, [stopPreview]);
 
   const handleSave = async (updatedEnabled = enabled) => {
     setSaving(true);
@@ -45,9 +58,9 @@ export const VoiceConversionTab = ({ config, onConfigChange }) => {
       setIsDirty(false); // Clear dirty flag on success
       onConfigChange();
       setTimeout(() => setSuccessMsg(null), 3000);
-    } catch (err) {
-      console.error('[VoiceConversionTab] Save failed:', err);
-      setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกค่า');
+    } catch {
+      console.error('[VoiceConversionTab] save failed code=CONFIG_SAVE_FAILED');
+      setError('ไม่สามารถบันทึกการตั้งค่า Voice Conversion ได้');
     } finally {
       setSaving(false);
     }
@@ -73,8 +86,9 @@ export const VoiceConversionTab = ({ config, onConfigChange }) => {
       setIsDirty(false); // Clear dirty flag on success
       onConfigChange();
       setTimeout(() => setSuccessMsg(null), 3000);
-    } catch (err) {
-      setError(err.message || 'เกิดข้อผิดพลาดในการรีเซ็ตค่า');
+    } catch {
+      console.error('[VoiceConversionTab] reset failed code=CONFIG_RESET_FAILED');
+      setError('ไม่สามารถรีเซ็ตการตั้งค่า Voice Conversion ได้');
     } finally {
       setSaving(false);
     }
@@ -82,35 +96,19 @@ export const VoiceConversionTab = ({ config, onConfigChange }) => {
 
   const handlePlayPreview = async () => {
     if (!testText.trim() || playing) return;
-    setPlaying(true);
     setPlayError(null);
 
     try {
-      // previewTTS takes: text, provider, voiceConversion, pitch, indexRate
-      // Here we explicitly want voiceConversion enabled for previewing
-      const result = await previewTTS(
-        testText, 
-        config['tts.currentProvider'], 
-        true, 
-        pitch, 
-        indexRate
-      );
-
-      if (result && result.audioUrl) {
-        const audio = new Audio(result.audioUrl);
-        audio.onended = () => setPlaying(false);
-        audio.onerror = () => {
-          setPlayError('ไม่สามารถเล่นเสียงพรีวิวได้');
-          setPlaying(false);
-        };
-        await audio.play();
-      } else {
-        throw new Error('No audio URL returned');
+      await playTest(testText, {
+        voiceConversion: true,
+        pitch,
+        indexRate,
+        source: PREVIEW_SOURCE,
+      });
+    } catch (previewError) {
+      if (previewError?.code !== 'TTS_ABORTED') {
+        setPlayError(getSafeTTSErrorMessage(previewError, 'ไม่สามารถแปลงเสียงทดสอบได้'));
       }
-    } catch (err) {
-      console.error('[VoiceConversionTab] Preview failed:', err);
-      setPlayError('เกิดข้อผิดพลาดในการแปลงเสียงทดสอบ');
-      setPlaying(false);
     }
   };
 
@@ -242,7 +240,8 @@ export const VoiceConversionTab = ({ config, onConfigChange }) => {
 
         <button
           onClick={handlePlayPreview}
-          disabled={playing || !testText.trim()}
+          disabled={playing || !previewReady || !testText.trim()}
+          title={previewReady ? 'สังเคราะห์และแปลงเสียงทดสอบ' : 'provider ปัจจุบันยังไม่พร้อมทดสอบเสียง'}
           style={{
             padding: '10px 14px',
             background: playing ? 'var(--code-bg)' : 'var(--accent)',
@@ -251,7 +250,7 @@ export const VoiceConversionTab = ({ config, onConfigChange }) => {
             borderRadius: '8px',
             fontSize: '13px',
             fontWeight: 'bold',
-            cursor: playing || !testText.trim() ? 'not-allowed' : 'pointer',
+            cursor: playing || !previewReady || !testText.trim() ? 'not-allowed' : 'pointer',
             transition: 'background 0.2s',
             display: 'flex',
             alignItems: 'center',

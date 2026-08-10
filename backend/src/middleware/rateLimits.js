@@ -38,7 +38,16 @@ function createSemaphore(max) {
 const chatLimit = rateLimit({ limit: 30 });
 const sttLimit = rateLimit({ limit: 10 });
 const expensiveLimit = rateLimit({ limit: 5 });
+const ttsSwitchLimit = rateLimit({ limit: 5 });
 const chatSlots = createSemaphore(2);
 const audioSlots = createSemaphore(1);
 
-module.exports = { rateLimit, chatLimit, sttLimit, expensiveLimit, chatSlots, audioSlots };
+module.exports = {
+  rateLimit,
+  chatLimit,
+  sttLimit,
+  expensiveLimit,
+  ttsSwitchLimit,
+  chatSlots,
+  audioSlots,
+};

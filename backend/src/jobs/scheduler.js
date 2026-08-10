@@ -5,6 +5,7 @@ const consolidationWorker = require('../services/memory/consolidationWorker');
 const decayWorker = require('../services/memory/decayWorker');
 const configService = require('../services/config/configService');
 const securityConfig = require('../config/securityConfig');
+const { publishedAudioStore } = require('../services/tts/neural/publishedAudioStore');
 
 function initScheduler() {
   console.log('[Scheduler] Initializing cron jobs...');
@@ -48,8 +49,12 @@ function initScheduler() {
       if (exists) {
         const files = await fs.promises.readdir(audioDir);
         const cutoff = Date.now() - securityConfig.audioRetentionHours * 60 * 60 * 1000;
-        let count = 0;
+        let count = await publishedAudioStore.cleanup({
+          publishedCutoff: cutoff,
+          stagingCutoff: cutoff,
+        });
         for (const file of files) {
+          if (publishedAudioStore.isReservedName(file)) continue;
           const filePath = path.join(audioDir, file);
           const stat = await fs.promises.stat(filePath);
           if (stat.isFile() && stat.mtimeMs < cutoff) {

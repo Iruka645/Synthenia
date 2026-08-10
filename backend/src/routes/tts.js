@@ -1,72 +1,82 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const ttsManager = require('../services/tts/index');
-const { createTTSProvider } = require('../services/tts/ttsFactory');
-const voiceConversionService = require('../services/voiceConversionService');
 const apiKeyAuth = require('../middleware/apiKeyAuth');
-const { expensiveLimit } = require('../middleware/rateLimits');
+const { expensiveLimit, ttsSwitchLimit } = require('../middleware/rateLimits');
 
-// GET current active provider
+function sendTTSError(res, error, fallbackStatus = 500) {
+  const status = Number.isInteger(error.httpStatus) ? error.httpStatus : fallbackStatus;
+  const code = typeof error.code === 'string' ? error.code : 'TTS_SYNTHESIS_FAILED';
+  const message = typeof error.code === 'string' ? error.message : 'TTS request failed.';
+  return res.status(status).json({ error: message, code });
+}
+
 router.get('/current', (req, res) => {
   try {
-    const current = ttsManager.getCurrentProvider();
-    res.json({ provider: current });
+    res.json({ provider: ttsManager.getCurrentProvider() });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendTTSError(res, error);
   }
 });
 
-// GET list of all supported providers
 router.get('/list', (req, res) => {
   try {
-    const list = ttsManager.getAvailableProviders();
-    res.json({ providers: list });
+    res.json({ providers: ttsManager.getAvailableProviders() });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    sendTTSError(res, error);
   }
 });
 
-// POST switch active provider
-router.post('/switch', apiKeyAuth, async (req, res) => {
-  const { provider } = req.body;
-  if (!provider) {
-    return res.status(400).json({ error: 'à¸•à¹‰à¸­à¸‡à¸£à¸°à¸šà¸¸à¸Šà¸·à¹ˆà¸­ provider à¹ƒà¸™ request body' });
+// Pure observation: this route never starts, loads, installs, or downloads a provider.
+router.get('/status', (req, res) => {
+  try {
+    res.json({ providers: ttsManager.getProviderStatuses() });
+  } catch (error) {
+    sendTTSError(res, error);
   }
+});
 
+router.post('/switch', apiKeyAuth, ttsSwitchLimit, async (req, res) => {
+  const { provider } = req.body || {};
+  if (typeof provider !== 'string' || !provider.trim()) {
+    return res.status(400).json({ error: 'Provider is required.', code: 'TTS_UNKNOWN_PROVIDER' });
+  }
   try {
     const active = await ttsManager.switchProvider(provider, 'control-panel');
-    res.json({ status: 'ok', provider: active });
+    return res.json({ status: 'ok', provider: active });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    return sendTTSError(res, error, 400);
   }
 });
 
-// POST preview synthesis for testing individual providers
 router.post('/preview', apiKeyAuth, expensiveLimit, async (req, res) => {
-  const { text, provider, voiceConversion, pitch, indexRate } = req.body;
-  if (!text || !text.trim()) {
-    return res.status(400).json({ error: 'à¸•à¹‰à¸­à¸‡à¸£à¸°à¸šà¸¸à¸‚à¹‰à¸­à¸„à¸§à¸²à¸¡ text à¸ªà¸³à¸«à¸£à¸±à¸šà¸ªà¸±à¸‡à¹€à¸„à¸£à¸²à¸°à¸«à¹Œà¹€à¸ªà¸µà¸¢à¸‡' });
+  const { text, provider, voiceConversion, pitch, indexRate } = req.body || {};
+  if (typeof text !== 'string' || !text.trim()) {
+    return res.status(400).json({ error: 'Preview text is required.', code: 'TTS_INVALID_INPUT' });
   }
+  if (provider !== undefined && (typeof provider !== 'string' || !provider.trim())) {
+    return res.status(400).json({ error: 'Provider must be a non-empty string.', code: 'TTS_UNKNOWN_PROVIDER' });
+  }
+  const providerName = typeof provider === 'string' && provider.trim()
+    ? provider.trim().toLowerCase()
+    : ttsManager.getCurrentProvider();
 
-  const providerName = provider ? provider.trim().toLowerCase() : ttsManager.getCurrentProvider();
-  
   try {
-    const tempProvider = createTTSProvider(providerName);
-    let audioFilename = await tempProvider.synthesize(text.trim());
-    
-    if (voiceConversion) {
-      const finalPitch = pitch !== undefined ? parseInt(pitch, 10) : 0;
-      const finalIndexRate = indexRate !== undefined ? parseFloat(indexRate) : 0.4;
-      audioFilename = await voiceConversionService.convert(audioFilename, finalPitch, finalIndexRate);
-    }
-
-    const audioUrl = `${req.protocol}://${req.get('host')}/audio/${audioFilename}`;
-    res.json({ provider: providerName, audioUrl, voiceConversionEnabled: !!voiceConversion });
+    const result = await ttsManager.preview(text, providerName, {
+      voiceConversion: voiceConversion === true,
+      pitch: pitch !== undefined ? Number(pitch) : 0,
+      indexRate: indexRate !== undefined ? Number(indexRate) : 0.4,
+    });
+    const audioUrl = `${req.protocol}://${req.get('host')}/audio/${encodeURIComponent(result.filename)}`;
+    return res.json({
+      provider: result.provider,
+      audioUrl,
+      voiceConversionEnabled: result.voiceConversionEnabled,
+    });
   } catch (error) {
-    console.error(`[TTS Preview Error]:`, error.message);
-    res.status(500).json({ error: `à¹€à¸à¸´à¸”à¸‚à¹‰à¸­à¸œà¸´à¸”à¸žà¸¥à¸²à¸”à¹ƒà¸™à¸à¸²à¸£à¸ªà¸±à¸‡à¹€à¸„à¸£à¸²à¸°à¸«à¹Œà¹€à¸ªà¸µà¸¢à¸‡à¸‚à¸­à¸‡ ${providerName}: ${error.message}` });
+    console.error(`[TTS Preview] provider=${providerName} code=${error.code || 'TTS_SYNTHESIS_FAILED'}`);
+    return sendTTSError(res, error);
   }
 });
 
 module.exports = router;
-

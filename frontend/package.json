@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
+    "test": "node --test",
+    "test:tts": "node --test test/ttsContracts.test.js",
     "test:vision": "node --test test/visionContracts.test.js test/adaptiveCaptureController.test.js",
     "preview": "vite preview"
   },

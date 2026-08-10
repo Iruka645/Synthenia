@@ -1,0 +1,4 @@
+# FAIL-CLOSED PLACEHOLDER — DO NOT INSTALL
+# The upstream inference repository has no declared repository license and its
+# dependency list is unpinned. manifest.json keeps enablementAllowed=false, so
+# the explicit setup script must stop before pip is invoked.

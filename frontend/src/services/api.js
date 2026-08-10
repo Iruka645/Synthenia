@@ -36,7 +36,9 @@ api.interceptors.response.use(
     if (error.response && error.response.data && error.response.data.error) {
       const payload = error.response.data.error;
       message = typeof payload === 'string' ? payload : (payload.message || 'Request failed');
-      normalizedErrorCode = typeof payload === 'object' ? payload.code : undefined;
+      normalizedErrorCode = typeof payload === 'object'
+        ? payload.code
+        : error.response.data.code;
     } else if (error.message) {
       message = error.message;
     }
@@ -44,7 +46,6 @@ api.interceptors.response.use(
     const normalizedError = new Error(message);
     normalizedError.status = error.response?.status;
     normalizedError.code = normalizedErrorCode;
-    normalizedError.originalError = error;
 
     return Promise.reject(normalizedError);
   }
@@ -103,13 +104,22 @@ export const getTTSProvidersList = async () => {
   return response.data;
 };
 
+export const getTTSProviderStatuses = async () => {
+  const response = await api.get('/tts/status');
+  return response.data;
+};
+
 export const switchTTSProvider = async (provider) => {
   const response = await api.post('/tts/switch', { provider });
   return response.data;
 };
 
-export const previewTTS = async (text, provider, voiceConversion, pitch, indexRate) => {
-  const response = await api.post('/tts/preview', { text, provider, voiceConversion, pitch, indexRate });
+export const previewTTS = async (text, provider, voiceConversion, pitch, indexRate, signal) => {
+  const response = await api.post(
+    '/tts/preview',
+    { text, provider, voiceConversion, pitch, indexRate },
+    { signal },
+  );
   return response.data;
 };
 

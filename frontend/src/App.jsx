@@ -108,7 +108,7 @@ function App() {
         </div>
 
         {/* TTS Settings Dropdown & Preview Selector */}
-        <TTSProviderSelector />
+        <TTSProviderSelector previewSource="app-tts-selector" />
       </div>
 
       {/* Right Panel: Chat Interface or Control Panel */}

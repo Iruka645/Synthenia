@@ -15,6 +15,10 @@ frontend/node_modules/
 .venv/
 env/
 
+# Neural TTS v2 local installs, private references, caches, receipts, and benchmarks
+.local/tts-v2/
+audio-staging/
+
 # Python Cache
 __pycache__/
 *.py[cod]
@@ -54,6 +58,8 @@ ehthumbs.db
 docs/*
 !docs/agent-artifacts/
 !docs/agent-artifacts/**
+!docs/tts-v2-setup.md
+!docs/tts-v2-progress.md
 
 # Logs
 backend/logs/*

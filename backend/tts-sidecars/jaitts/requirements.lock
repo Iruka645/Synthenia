@@ -1,0 +1,4 @@
+# FAIL-CLOSED PLACEHOLDER — DO NOT INSTALL
+# A complete Python 3.11 / Windows / CUDA lock with hashes has not been
+# independently resolved. manifest.json keeps enablementAllowed=false, so the
+# explicit setup script must stop before pip is invoked.
